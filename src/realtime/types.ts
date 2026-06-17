@@ -1,5 +1,5 @@
 /**
- * @http-io/socket.io.client
+ * rhttp.io/socket.io.client
  * Realtime WebSocket Client with SSR Support
  */
 

@@ -1,8 +1,5 @@
 import { createHttp } from "./dist/index.js";
-<<<<<<< HEAD
-import type { HttpResponse } from "./dist/index.d.ts";
-=======
->>>>>>> 51b5407 (last)
+
 
 // Mock fetch for testing
 const originalFetch = globalThis.fetch;
@@ -734,7 +731,7 @@ test("Realtime Client Room Join and Offline Queue", async () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function runTests() {
-  console.log("\n🧪 Running @http-io test suite...\n");
+  console.log("\n🧪 Running rhttp.io test suite...\n");
 
   let passed = 0;
   let failed = 0;

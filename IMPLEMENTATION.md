@@ -1,8 +1,8 @@
-# Implementation Summary: @http-io Universal HTTP Client
+# Implementation Summary: rhttp.io Universal HTTP Client
 
 ## ✅ Project Completion Status
 
-The @http-io package has been **fully implemented** and tested according to the technical specification. All core features, entry points, and production-ready capabilities have been delivered.
+The rhttp.io package has been **fully implemented** and tested according to the technical specification. All core features, entry points, and production-ready capabilities have been delivered.
 
 ---
 
@@ -59,21 +59,21 @@ The heart of the package with ~600 lines of production-ready code:
 #### `src/client.ts`
 - Browser-optimized factory: `createClientHttp()`
 - Pre-configured CSRF protection with automatic prefetch
-- Entry point: `@http-io/client`
+- Entry point: `rhttp.io/client`
 
 #### `src/server.ts`
 - Server-optimized factory: `createServerHttp()`
 - Pre-configured cookie forwarding
 - Enhanced logging and tracing for production
 - Request context binding support
-- Entry point: `@http-io/server`
+- Entry point: `rhttp.io/server`
 
 #### `src/react.ts`
 - React integration with `withReact()` wrapper
 - TanStack Query query builder: `http.query({ url, params })`
 - TanStack Query mutation builder: `http.mutation({ method, url })`
 - Auto type inference for queryKey and queryFn
-- Entry point: `@http-io/react`
+- Entry point: `rhttp.io/react`
 
 ### 3. **Build Configuration**
 
@@ -219,24 +219,24 @@ The heart of the package with ~600 lines of production-ready code:
 
 ## 🚀 Usage Entry Points
 
-### Import from @http-io
+### Import from rhttp.io
 ```typescript
-import { createHttp } from "@http-io";
+import { createHttp } from "rhttp.io";
 ```
 
-### Import from @http-io/client
+### Import from rhttp.io/client
 ```typescript
-import { createClientHttp } from "@http-io/client";
+import { createClientHttp } from "rhttp.io/client";
 ```
 
-### Import from @http-io/server
+### Import from rhttp.io/server
 ```typescript
-import { createServerHttp } from "@http-io/server";
+import { createServerHttp } from "rhttp.io/server";
 ```
 
-### Import from @http-io/react
+### Import from rhttp.io/react
 ```typescript
-import { withReact } from "@http-io/react";
+import { withReact } from "rhttp.io/react";
 ```
 
 ---
@@ -316,6 +316,6 @@ bun test.ts
 
 ## ✅ Conclusion
 
-The **@http-io** package is a **production-ready, fully-featured universal HTTP client** that bridges the gap between the native Fetch API and modern framework requirements. It provides excellent TypeScript support, comprehensive error handling, advanced caching and retry logic, and seamless integration with popular libraries like TanStack Query.
+The **rhttp.io** package is a **production-ready, fully-featured universal HTTP client** that bridges the gap between the native Fetch API and modern framework requirements. It provides excellent TypeScript support, comprehensive error handling, advanced caching and retry logic, and seamless integration with popular libraries like TanStack Query.
 
 The implementation is **complete, tested, documented, and ready for publication**.

@@ -1,6 +1,6 @@
 # Advanced Features Implementation Guide
 
-This document provides detailed technical information about the advanced features added to `@http-io`.
+This document provides detailed technical information about the advanced features added to `rhttp.io`.
 
 ## Table of Contents
 

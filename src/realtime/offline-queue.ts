@@ -11,7 +11,7 @@ export class OfflineQueue {
 
   constructor(config?: OfflineQueueConfig) {
     this.config = config || { enabled: false };
-    this.storageKey = this.config.storageKey || "@http-io/realtime:offline-queue";
+    this.storageKey = this.config.storageKey || "rhttp.io/realtime:offline-queue";
     this.load();
   }
 

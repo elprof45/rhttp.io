@@ -1,9 +1,5 @@
 {
-<<<<<<< HEAD
-  "name": "@http-io",
-=======
   "name": "rhttp.io",
->>>>>>> 51b5407 (last)
   "version": "1.0.0",
   "description": "Universal (isomorphic) HTTP client library based on native Fetch with caching, retries, validation, and realtime socket support",
   "type": "module",
@@ -34,7 +30,7 @@
     "url": "git+https://github.com/elprof/http.io.git"
   },
   "bugs": {
-    "url": "https://github.com/elprof/http.io/issues"
+    "url": "https://github.com"
   },
   "homepage": "https://github.com/elprof/http.io#readme",
   "main": "./dist/index.cjs",
@@ -93,23 +89,15 @@
     }
   },
   "files": [
-<<<<<<< HEAD
-    "dist"
-=======
     "dist",
     "README.md",
     "LICENSE"
->>>>>>> 51b5407 (last)
   ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-<<<<<<< HEAD
-    "test": "bun test.ts"
-=======
     "test": "bun test.ts",
     "prepublishOnly": "bun run build"
->>>>>>> 51b5407 (last)
   },
   "devDependencies": {
     "@tanstack/react-query": "^5.45.0",
@@ -123,12 +111,8 @@
   "peerDependencies": {
     "@tanstack/react-query": "^5.0.0",
     "react": "^18.0.0 || ^19.0.0",
-<<<<<<< HEAD
-    "socket.io-client": "^4.0.0"
-=======
     "react-dom": "^18.0.0 || ^19.0.0",
     "socket.io-client": "^4.8.3"
->>>>>>> 51b5407 (last)
   },
   "peerDependenciesMeta": {
     "@tanstack/react-query": {
@@ -137,12 +121,9 @@
     "react": {
       "optional": true
     },
-<<<<<<< HEAD
-=======
     "react-dom": {
       "optional": true
     },
->>>>>>> 51b5407 (last)
     "socket.io-client": {
       "optional": true
     }

@@ -1,4 +1,4 @@
-# @http-io — Universal HTTP Client Library
+# rhttp.io — Universal HTTP Client Library
 
 A production-ready, fully-typed, isomorphic HTTP client built on the native Fetch API. Designed for modern JavaScript frameworks like **TanStack Start**, **React Query**, and **React** with seamless support for Node.js, browsers, and Edge Runtimes.
 
@@ -19,25 +19,25 @@ A production-ready, fully-typed, isomorphic HTTP client built on the native Fetc
 ## 📦 Installation
 
 ```bash
-npm install @http-io
+npm install rhttp.io
 # or
-bun add @http-io
+bun add rhttp.io
 ```
 
 ### Entry Points
 
 ```typescript
 // Core isomorphic client
-import { createHttp } from "@http-io";
+import { createHttp } from "rhttp.io";
 
 // Browser-optimized client (CSRF prefetch, etc.)
-import { createClientHttp } from "@http-io/client";
+import { createClientHttp } from "rhttp.io/client";
 
 // Server-optimized client (cookie forwarding, logging)
-import { createServerHttp } from "@http-io/server";
+import { createServerHttp } from "rhttp.io/server";
 
 // React + TanStack Query integration
-import { withReact } from "@http-io/react";
+import { withReact } from "rhttp.io/react";
 ```
 
 ## 🚀 Quick Start
@@ -45,7 +45,7 @@ import { withReact } from "@http-io/react";
 ### Basic Usage
 
 ```typescript
-import { createHttp } from "@http-io";
+import { createHttp } from "rhttp.io";
 
 const http = createHttp({
   baseURL: "https://api.example.com",
@@ -74,7 +74,7 @@ try {
 ### Browser Client with CSRF
 
 ```typescript
-import { createClientHttp } from "@http-io/client";
+import { createClientHttp } from "rhttp.io/client";
 
 const http = createClientHttp({
   baseURL: "https://api.example.com",
@@ -88,7 +88,7 @@ await http.post("/orders", payload); // ✓ CSRF token auto-injected
 ### Server Client with Cookie Forwarding
 
 ```typescript
-import { createServerHttp } from "@http-io/server";
+import { createServerHttp } from "rhttp.io/server";
 
 const http = createServerHttp({
   baseURL: process.env.INTERNAL_API_URL,
@@ -109,8 +109,8 @@ export const fetchUserOrders = createServerFn({ method: "GET" }).handler(
 ### React + TanStack Query
 
 ```typescript
-import { createHttp } from "@http-io";
-import { withReact } from "@http-io/react";
+import { createHttp } from "rhttp.io";
+import { withReact } from "rhttp.io/react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 
 const baseHttp = createHttp({ baseURL: "https://api.example.com" });
@@ -363,7 +363,7 @@ interface HttpResponse<T> {
 ### Error Types
 
 ```typescript
-import { HttpError, TimeoutError, NetworkError } from "@http-io";
+import { HttpError, TimeoutError, NetworkError } from "rhttp.io";
 
 try {
   await http.get("/items");
@@ -398,7 +398,7 @@ const apiClient = createServerHttp({
 Automatically refresh expired tokens on `401` responses and retry all queued requests:
 
 ```typescript
-import { createHttp, createRefreshAuthInterceptor } from "@http-io";
+import { createHttp, createRefreshAuthInterceptor } from "rhttp.io";
 
 const http = createHttp({
   baseURL: "https://api.example.com",
@@ -469,7 +469,7 @@ const apiClient = createHttp({
 ### Pattern 4: Cookie-Based Sessions (SSR)
 
 ```typescript
-import { createServerHttp } from "@http-io/server";
+import { createServerHttp } from "rhttp.io/server";
 import { getRequest } from "@tanstack/react-start/server";
 
 const apiServer = createServerHttp({
@@ -552,7 +552,7 @@ const { data } = await http.get("/orders", {
 ### Basic Usage
 
 ```typescript
-import { createRealtimeClient } from "@http-io/socket.io.client";
+import { createRealtimeClient } from "rhttp.io/socket.io.client";
 
 const client = createRealtimeClient({
   socketUrl: "https://ws.example.com",
@@ -915,7 +915,7 @@ setTimeout(() => {
 ## 📋 Project Structure
 
 ```
-@http-io/
+rhttp.io/
 ├── src/
 │   ├── index.ts           # Main isomorphic exports
 │   ├── auth.ts            # JWT refresh token interceptor
