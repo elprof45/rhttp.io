@@ -1,0 +1,150 @@
+{
+<<<<<<< HEAD
+  "name": "@http-io",
+=======
+  "name": "rhttp.io",
+>>>>>>> 51b5407 (last)
+  "version": "1.0.0",
+  "description": "Universal (isomorphic) HTTP client library based on native Fetch with caching, retries, validation, and realtime socket support",
+  "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "http",
+    "fetch",
+    "isomorphic",
+    "universal",
+    "client",
+    "react",
+    "tanstack",
+    "query",
+    "socket.io",
+    "realtime",
+    "cache",
+    "retry",
+    "circuit-breaker",
+    "jwt",
+    "validation"
+  ],
+  "author": "http.io Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/elprof/http.io.git"
+  },
+  "bugs": {
+    "url": "https://github.com/elprof/http.io/issues"
+  },
+  "homepage": "https://github.com/elprof/http.io#readme",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./client": {
+      "import": {
+        "types": "./dist/client.d.ts",
+        "default": "./dist/client.js"
+      },
+      "require": {
+        "types": "./dist/client.d.cts",
+        "default": "./dist/client.cjs"
+      }
+    },
+    "./server": {
+      "import": {
+        "types": "./dist/server.d.ts",
+        "default": "./dist/server.js"
+      },
+      "require": {
+        "types": "./dist/server.d.cts",
+        "default": "./dist/server.cjs"
+      }
+    },
+    "./react": {
+      "import": {
+        "types": "./dist/react.d.ts",
+        "default": "./dist/react.js"
+      },
+      "require": {
+        "types": "./dist/react.d.cts",
+        "default": "./dist/react.cjs"
+      }
+    },
+    "./socket.io.client": {
+      "import": {
+        "types": "./dist/socket.io.d.ts",
+        "default": "./dist/socket.io.js"
+      },
+      "require": {
+        "types": "./dist/socket.io.d.cts",
+        "default": "./dist/socket.io.cjs"
+      }
+    }
+  },
+  "files": [
+<<<<<<< HEAD
+    "dist"
+=======
+    "dist",
+    "README.md",
+    "LICENSE"
+>>>>>>> 51b5407 (last)
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+<<<<<<< HEAD
+    "test": "bun test.ts"
+=======
+    "test": "bun test.ts",
+    "prepublishOnly": "bun run build"
+>>>>>>> 51b5407 (last)
+  },
+  "devDependencies": {
+    "@tanstack/react-query": "^5.45.0",
+    "@types/bun": "latest",
+    "@types/react": "^18.3.3",
+    "react": "^18.3.1",
+    "socket.io-client": "^4.8.3",
+    "tsup": "^8.1.0",
+    "typescript": "^5.4.5"
+  },
+  "peerDependencies": {
+    "@tanstack/react-query": "^5.0.0",
+    "react": "^18.0.0 || ^19.0.0",
+<<<<<<< HEAD
+    "socket.io-client": "^4.0.0"
+=======
+    "react-dom": "^18.0.0 || ^19.0.0",
+    "socket.io-client": "^4.8.3"
+>>>>>>> 51b5407 (last)
+  },
+  "peerDependenciesMeta": {
+    "@tanstack/react-query": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    },
+<<<<<<< HEAD
+=======
+    "react-dom": {
+      "optional": true
+    },
+>>>>>>> 51b5407 (last)
+    "socket.io-client": {
+      "optional": true
+    }
+  }
+}
