@@ -1,10 +1,11 @@
 {
   "name": "rhttp.io",
   "version": "1.0.0",
-  "description": "Universal (isomorphic) HTTP client library based on native Fetch with caching, retries, validation, and realtime socket support",
+  "description": "Universal HTTP client with caching, retries, circuit breaker, JWT auth, CSRF protection, and Socket.io",
   "type": "module",
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
   },
   "keywords": [
     "http",
@@ -12,27 +13,30 @@
     "isomorphic",
     "universal",
     "client",
-    "react",
-    "tanstack",
-    "query",
-    "socket.io",
-    "realtime",
     "cache",
     "retry",
     "circuit-breaker",
     "jwt",
-    "validation"
+    "csrf",
+    "validation",
+    "typescript",
+    "react",
+    "socket.io",
+    "realtime"
   ],
-  "author": "http.io Team",
+  "author": "http.io Contributors",
   "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/elprof45/rhttp.io"
+    "url": "https://github.com/elprof45/rhttp.io.git"
   },
   "bugs": {
-    "url": "https://github.com/elprof45/rhttp.io"
+    "url": "https://github.com/elprof45/rhttp.io/issues"
   },
-  "homepage": "https://github.com/elprof45/rhttp.io",
+  "homepage": "https://github.com/elprof45/rhttp.io#readme",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -91,13 +95,15 @@
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "test": "bun test.ts",
-    "prepublishOnly": "bun run build"
+    "test": "bun test",
+    "lint": "tsc --noEmit",
+    "prepublishOnly": "bun run build && bun run test"
   },
   "devDependencies": {
     "@tanstack/react-query": "^5.45.0",

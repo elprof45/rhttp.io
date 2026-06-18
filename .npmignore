@@ -1,0 +1,16 @@
+src
+test.test.ts
+comprehensive.test.ts
+tsconfig.json
+tsup.config.ts
+.gitignore
+.eslintignore
+.prettierignore
+*.tgz
+coverage
+.idea
+.vscode
+*.log
+.DS_Store
+.env*
+node_modules

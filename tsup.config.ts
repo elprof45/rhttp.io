@@ -8,18 +8,13 @@ export default defineConfig({
     react: "src/react.ts",
     "socket.io": "src/socket.io.ts",
   },
-
   format: ["esm", "cjs"],
-
   dts: {
     resolve: true,
   },
-
-  clean: true,
-  sourcemap: true,
   minify: true,
-  splitting: true,
-
+  shims: true,
+  target: "esnext",
   external: [
     "react",
     "react-dom",

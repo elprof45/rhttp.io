@@ -1,6 +1,6 @@
-# rhttp.io — Universal HTTP Client Library
+# rhttp.io
 
-A production-ready, fully-typed, isomorphic HTTP client built on the native Fetch API. Designed for modern JavaScript frameworks like **TanStack Start**, **React Query**, and **React** with seamless support for Node.js, browsers, and Edge Runtimes.
+Universal HTTP client. Caching, retries, circuit breaker, JWT, CSRF, Socket.io. Isomorphic for browsers, Node.js, Edge.
 
 ## ✨ Features
 
