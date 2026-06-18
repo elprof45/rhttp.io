@@ -315,7 +315,7 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
           : retryConfig.shouldRetry,
       };
 
-      let attempt = 0;
+      let attempt = 1;
       while (true) {
         try {
           return await executeSingleRequest(finalOptions);
@@ -325,18 +325,24 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
             throw err;
           }
 
-          // Check if retryable status code
+          // Check if retryable - either by status code or custom shouldRetry logic
           const status = err instanceof HttpError ? err.status : 0;
           const isRetryableStatus = status === 0 || retryOpts.statusCodes.includes(status);
-          if (!isRetryableStatus) {
+          
+          // If no custom shouldRetry, check status codes
+          if (!retryOpts.shouldRetry && !isRetryableStatus) {
             throw err;
           }
 
+          // If custom shouldRetry exists, use it (regardless of status)
           if (retryOpts.shouldRetry) {
-            const check = await retryOpts.shouldRetry(err, attempt);
+            const check = await retryOpts.shouldRetry(err, attempt - 1);
             if (!check) {
               throw err;
             }
+          } else if (!isRetryableStatus) {
+            // No custom logic and not retryable status
+            throw err;
           }
 
           // Compute delay
@@ -358,32 +364,23 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
       }
     };
 
-    let response: HttpResponse<any>;
+    // Handle deduplication independently of cache
+    if (isGet && isDedupEnabled && dedupKey) {
+      const existingPromise = dedupMap.get(dedupKey);
+      if (existingPromise) {
+        logger.debug(`Deduplicating concurrent request for ${finalOptions.url}`);
+        return existingPromise;
+      }
+    }
 
-    if (isGet && isCacheEnabled) {
+    // Create the main promise for this request (with dedup if needed)
+    const responsePromise = (async () => {
+      let response: HttpResponse<any>;
+
+      if (isGet && isCacheEnabled) {
       const fetchFromNetwork = async () => {
         let promise: Promise<HttpResponse<any>>;
-        if (isDedupEnabled && dedupKey) {
-          const existingPromise = dedupMap.get(dedupKey);
-          if (existingPromise) {
-            logger.debug(`Deduplicating concurrent request for ${finalOptions.url}`);
-            return existingPromise;
-          }
-
-          promise = executeOperation().then(
-            (res) => {
-              dedupMap.delete(dedupKey);
-              return res;
-            },
-            (err) => {
-              dedupMap.delete(dedupKey);
-              throw err;
-            }
-          );
-          dedupMap.set(dedupKey, promise);
-        } else {
-          promise = executeOperation();
-        }
+        promise = executeOperation();
         return promise;
       };
 
@@ -434,6 +431,19 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
     });
 
     return pluginResponse;
+    })();
+
+    // Store dedup promise if enabled
+    if (isGet && isDedupEnabled && dedupKey) {
+      dedupMap.set(dedupKey, responsePromise);
+      try {
+        return await responsePromise;
+      } finally {
+        dedupMap.delete(dedupKey);
+      }
+    }
+
+    return await responsePromise;
   }
 
   // Execution of a single native fetch call
