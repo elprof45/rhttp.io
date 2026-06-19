@@ -1,15 +1,31 @@
 /**
  * Advanced HTTP Client Features
- * - Rate limiting
- * - Request profiling
- * - Middleware chain
- * - Structured logging
+ *
+ * This module provides production-grade observability and rate limiting:
+ * - **RateLimiter**: Token bucket algorithm for rate limiting
+ * - **RequestProfiler**: Performance metrics and timing analysis
+ * - **InMemoryStructuredLogger**: JSON-structured logging with context
+ * - **MiddlewareChain**: Composable middleware pipeline
+ * - **AutoCleanup**: Automatic lifecycle management
+ *
+ * @example
+ * ```typescript
+ * import { RateLimiter, RequestProfiler } from \"rhttp.io/features\";\n *\n * const limiter = new RateLimiter({ tokensPerSecond: 100 });\n * const profiler = new RequestProfiler();\n * ```
  */
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Rate Limiting - Token Bucket Algorithm
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Configuration for rate limiting
+ * Implements the Token Bucket algorithm for smooth rate limiting.
+ * Prevents thundering herd and burst requests.
+ *
+ * @example
+ * ```typescript
+ * const limiter = new RateLimiter({\n *   enabled: true,\n *   tokensPerSecond: 100,      // 100 requests/second\n *   maxBurst: 150,              // Allow 150 in burst\n * });\n * ```
+ */
 export interface RateLimitConfig {
   enabled: boolean;
   tokensPerSecond: number;
@@ -17,6 +33,23 @@ export interface RateLimitConfig {
   keyBuilder?: (url: string, method: string) => string;
 }
 
+/**
+ * Token Bucket Rate Limiter
+ *
+ * Implements smooth rate limiting using the Token Bucket algorithm.
+ * Tokens are refilled at `tokensPerSecond` rate, with a maximum of `maxBurst`.
+ * Each request consumes tokens; if insufficient, the request waits.
+ *
+ * **Use Cases:**
+ * - API quota management (100 requests/second)
+ * - Prevent thundering herd
+ * - Graceful degradation under load
+ * - Per-endpoint rate limiting
+ *
+ * @example
+ * ```typescript
+n * const limiter = new RateLimiter({\n *   tokensPerSecond: 100,\n *   maxBurst: 150,\n * });\n *\n * // In interceptor\n * http.interceptors.request.use(async (options) => {\n *   await limiter.acquire(options.url, options.method, 1);\n *   return options;\n * });\n * ```
+ */
 export class RateLimiter {
   private buckets = new Map<string, { tokens: number; lastRefill: number }>();
   private config: Required<RateLimitConfig>;
@@ -24,12 +57,19 @@ export class RateLimiter {
   constructor(config: Partial<RateLimitConfig> = {}) {
     this.config = {
       enabled: config.enabled ?? false,
-      tokensPerSecond: config.tokensPerSecond ?? 100,
-      maxBurst: config.maxBurst ?? config.tokensPerSecond ?? 100,
+      tokensPerSecond: Math.max(1, config.tokensPerSecond ?? 100),
+      maxBurst: Math.max(1, config.maxBurst ?? config.tokensPerSecond ?? 100),
       keyBuilder: config.keyBuilder || ((url, method) => `${method}:${new URL(url, 'http://localhost').pathname}`),
     };
   }
 
+  /**
+   * Acquire tokens from bucket, waiting if necessary
+   * @param url Request URL
+   * @param method HTTP method
+   * @param weight Number of tokens to acquire (default: 1)
+   * @throws Never throws - waits indefinitely if needed
+   */
   async acquire(url: string, method: string, weight: number = 1): Promise<void> {
     if (!this.config.enabled) {
       return;
@@ -65,6 +105,10 @@ export class RateLimiter {
     bucket.tokens -= weight;
   }
 
+  /**
+   * Reset rate limit bucket(s)
+   * @param key Optional specific key to reset. If omitted, resets all buckets.
+   */
   reset(key?: string): void {
     if (key) {
       this.buckets.delete(key);
@@ -73,8 +117,26 @@ export class RateLimiter {
     }
   }
 
+  /**
+   * Get bucket status for a specific key
+   * @returns Bucket state or undefined if not found
+   */
   getStatus(key: string) {
     return this.buckets.get(key);
+  }
+
+  /**
+   * Get all tracked buckets
+   */
+  getAllBuckets() {
+    return new Map(this.buckets);
+  }
+
+  /**
+   * Get limiter config
+   */
+  getConfig() {
+    return { ...this.config };
   }
 }
 
@@ -82,6 +144,12 @@ export class RateLimiter {
 // Request Profiler - Performance Metrics
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Performance and timing metrics for a single request
+ *
+ * Tracks full lifecycle of HTTP request from start to finish,
+ * including network timing, caching, and error information.
+ */
 export interface RequestProfile {
   requestId: string;
   url: string;
@@ -106,10 +174,23 @@ export interface RequestProfile {
   error?: string;
 }
 
+/**
+ * Request Performance Profiler
+ *
+ * Collects and analyzes request performance metrics.
+ * Maintains history of profiles with automatic cleanup when limit exceeded.
+ */
 export class RequestProfiler {
   private profiles: Map<string, RequestProfile> = new Map();
   private maxProfiles = 1000;
 
+  /**
+   * Start profiling a request
+   * @param requestId Unique request identifier
+   * @param url Request URL
+   * @param method HTTP method
+   * @returns Profile object to be updated with response data
+   */
   start(requestId: string, url: string, method: string): RequestProfile {
     const profile: RequestProfile = {
       requestId,
@@ -141,6 +222,13 @@ export class RequestProfiler {
     return profile;
   }
 
+  /**
+   * End profiling and record result
+   * @param requestId Request identifier
+   * @param status HTTP status code
+   * @param error Optional error message
+   * @returns Updated profile or undefined if not found
+   */
   end(requestId: string, status: number, error?: string): RequestProfile | undefined {
     const profile = this.profiles.get(requestId);
     if (!profile) return undefined;
@@ -153,10 +241,17 @@ export class RequestProfiler {
     return profile;
   }
 
+  /**
+   * Get profile by request ID
+   */
   getProfile(requestId: string): RequestProfile | undefined {
     return this.profiles.get(requestId);
   }
 
+  /**
+   * Query profiles with optional filtering
+   * @param filter Filter by URL or method
+   */
   getProfiles(filter?: { url?: string; method?: string }): RequestProfile[] {
     const profiles = Array.from(this.profiles.values());
     if (!filter) return profiles;
@@ -168,6 +263,9 @@ export class RequestProfiler {
     );
   }
 
+  /**
+   * Get aggregate performance statistics
+   */
   getStats(): {
     totalRequests: number;
     averageDuration: number;
@@ -193,6 +291,9 @@ export class RequestProfiler {
     };
   }
 
+  /**
+   * Clear all profiles
+   */
   clear(): void {
     this.profiles.clear();
   }

@@ -1,6 +1,30 @@
 import type { CircuitBreakerConfig, RequestPoolConfig, PollingConfig, CacheStrategy } from "./types";
 import { HttpError } from "./errors";
 
+/**
+ * Circuit Breaker State
+ * - CLOSED: Normal operation, all requests pass through
+ * - OPEN: Service failing, requests are blocked immediately
+ * - HALF_OPEN: Testing recovery, limited requests allowed
+ */
+export type CircuitBreakerState = "closed" | "open" | "half-open";
+
+/**
+ * Circuit Breaker Implementation
+ * Prevents cascading failures by detecting patterns and failing fast.
+ *
+ * @example
+ * ```typescript
+ * const http = createHttp({
+ *   circuitBreaker: {
+ *     enabled: true,
+ *     failureThreshold: 5,
+ *     successThreshold: 2,
+ *     timeout: 60000
+ *   }
+ * });
+ * ```
+ */
 // ─────────────────────────────────────────────────────────────────────────────
 // Circuit Breaker Implementation
 // ─────────────────────────────────────────────────────────────────────────────

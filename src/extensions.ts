@@ -1,7 +1,7 @@
 /**
  * HTTP.io Extensions - Additional Features
  *
- * These extensions add functionality to the core HTTP client:
+ * Provides optional extensions for specialized use cases:
  * - GraphQL support
  * - Schema validation (Zod)
  * - Request compression
@@ -20,7 +20,7 @@ export interface GraphQLRequest {
   operationName?: string;
 }
 
-export interface GraphQLResponse<T> {
+export interface GraphQLResponse<T = any> {
   data?: T;
   errors?: Array<{
     message: string;
@@ -32,41 +32,47 @@ export interface GraphQLResponse<T> {
 }
 
 /**
- * Create a GraphQL client wrapper
- *
- * @example
- * ```typescript
- * const graphqlClient = withGraphQL(http, "/graphql");
- *
- * const { data } = await graphqlClient.query<{ posts: Post[] }>({
- *   query: `query { posts { id title } }`,
- * });
- * ```
+ * GraphQL-specific error with full error context
+ */
+export class GraphQLError extends Error {
+  constructor(
+    message: string,
+    public errors: Array<{
+      message: string;
+      locations?: Array<{ line: number; column: number }>;
+      path?: string[];
+      extensions?: Record<string, any>;
+    }>
+  ) {
+    super(message);
+    this.name = "GraphQLError";
+  }
+}
+
+/**
+ * Create a GraphQL client wrapper with type-safe query/mutation support
  */
 export function withGraphQL(http: any, endpoint: string = "/graphql") {
   return {
-    async query<T = any>(request: GraphQLRequest) {
+    async query<T = any>(request: GraphQLRequest): Promise<T> {
       const response = (await http.post(endpoint, request)) as HttpResponse<GraphQLResponse<T>>;
 
       if (response.data.errors && response.data.errors.length > 0) {
-        const firstError = response.data.errors[0];
-        if (firstError) {
-          const error = new Error(firstError.message);
-          (error as any).graphqlErrors = response.data.errors;
-          throw error;
-        }
+        throw new GraphQLError(
+          response.data.errors[0]?.message || "GraphQL error",
+          response.data.errors
+        );
       }
 
-      return response.data.data;
+      return response.data.data as T;
     },
 
-    async mutation<T = any>(request: GraphQLRequest) {
+    async mutation<T = any>(request: GraphQLRequest): Promise<T> {
       return this.query<T>(request);
     },
 
     async subscribe<T = any>(request: GraphQLRequest, onData: (data: T) => void) {
-      // WebSocket implementation
-      console.warn("GraphQL subscriptions require WebSocket setup");
+      throw new Error("GraphQL subscriptions require WebSocket setup");
     },
   };
 }
