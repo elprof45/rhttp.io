@@ -26,6 +26,11 @@ import type { CreateHttpConfig, HttpClientInstance } from "./types";
  * - Tokens are read from localStorage under the key "access_token"
  * - To update token: localStorage.setItem("access_token", "new-token")
  * - Tokens are injected as: Authorization: Bearer <token>
+ *
+ * CSRF Protection:
+ * - CSRF is enabled by default for Client Components
+ * - Tokens are fetched from /api/csrf and cached
+ * - Can be customized or disabled via config.csrf
  */
 export function createClientHttp(
   config: CreateHttpConfig = {},
@@ -47,6 +52,14 @@ export function createClientHttp(
     },
   };
 
+  // Default getToken function that reads from localStorage
+  const defaultGetToken = () => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("access_token");
+    }
+    return null;
+  };
+
   // Create base instance with client defaults
   const http = createHttp({
     ...config,
@@ -59,19 +72,12 @@ export function createClientHttp(
       prefetch: true,
       ...config.csrf,
     },
-  });
-
-  // Add automatic token injection from localStorage
-  // This interceptor runs for every request and injects the access token if present
-  http.interceptors.request.use((options) => {
-    if (typeof window !== "undefined") {
-      const token = localStorage.getItem("access_token");
-      if (token) {
-        options.headers = options.headers || {};
-        options.headers["authorization"] = `Bearer ${token}`;
-      }
-    }
-    return options;
+    auth: {
+      scheme: "Bearer",
+      // Use provided getToken or default to localStorage
+      getToken: config.auth?.getToken || defaultGetToken,
+      ...config.auth,
+    },
   });
 
   return http;

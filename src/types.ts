@@ -43,6 +43,16 @@ export interface CacheConfig {
   ttl: number;
 
   /**
+   * Stratégie de cache globale.
+   * - network-first: essaie le réseau, retombe sur le cache si échec
+   * - cache-first: utilise le cache si disponible et frais, sinon réseau
+   * - stale-while-revalidate: retourne le cache (même périmé) et revalide en arrière-plan
+   * - cache-only: utilise uniquement le cache
+   * - network-only: utilise uniquement le réseau
+   */
+  strategy?: CacheStrategy;
+
+  /**
    * Fonction personnalisée pour générer la clé de cache.
    */
   keyBuilder?: (url: string, options: any) => string;
@@ -51,6 +61,7 @@ export interface CacheConfig {
 export interface CsrfConfig {
   /**
    * Active/désactive la protection CSRF.
+   * Par défaut: false (pas de protection CSRF sauf si explicitement activé)
    */
   enabled: boolean;
 
@@ -71,11 +82,13 @@ export interface CsrfConfig {
 
   /**
    * Méthodes HTTP pour lesquelles le token est obligatoire.
+   * Par défaut: ["POST", "PUT", "PATCH", "DELETE"]
    */
   methods: string[];
 
   /**
    * Pré-charger le token CSRF au démarrage de l'application.
+   * Utile pour les Client Components avec CSRF activé.
    */
   prefetch: boolean;
 }
@@ -110,23 +123,27 @@ export interface ObservabilityConfig {
 export interface AuthConfig {
   /**
    * Propage automatiquement les cookies de la requête entrante.
-   * Principalement pour SSR.
+   * Principalement pour SSR. Fonctionne avec auto-detection TanStack Start ou requestContext explicite.
    */
   forwardCookies: boolean;
 
   /**
    * Token d'authentification fixe (ex: service-to-service).
+   * Utilisé si fourni, sinon getToken() est appelé.
    */
   accessToken?: string;
 
   /**
    * Schéma d'authentification dans le header Authorization.
    * Valeurs courantes: "Bearer", "Basic", "ApiKey"
+   * Défaut: "Bearer"
    */
   scheme: string;
 
   /**
    * Fonction pour récupérer le token dynamiquement.
+   * Appelée pour chaque requête si accessToken n'est pas défini.
+   * Peut être utilisée pour lire depuis localStorage (client) ou process.env (server).
    */
   getToken?: () => Promise<string | null> | string | null;
 }
@@ -376,31 +393,31 @@ export interface HttpClientInstance {
     request: InterceptorManager<HttpRequestOptions & { url: string; method: string; body?: any }>;
     response: InterceptorManager<HttpResponse<any>>;
   };
-  
+
   get<T = any>(url: string, options?: HttpRequestOptions): Promise<HttpResponse<T>>;
-  
+
   post<T = any>(url: string, body?: any, options?: HttpRequestOptions): Promise<HttpResponse<T>>;
   post<B = any, T = any>(url: string, body: B, options?: HttpRequestOptions): Promise<HttpResponse<T>>;
-  
+
   put<T = any>(url: string, body?: any, options?: HttpRequestOptions): Promise<HttpResponse<T>>;
   put<B = any, T = any>(url: string, body: B, options?: HttpRequestOptions): Promise<HttpResponse<T>>;
-  
+
   patch<T = any>(url: string, body?: any, options?: HttpRequestOptions): Promise<HttpResponse<T>>;
   patch<B = any, T = any>(url: string, body: B, options?: HttpRequestOptions): Promise<HttpResponse<T>>;
-  
+
   delete<T = any>(url: string, options?: HttpRequestOptions): Promise<HttpResponse<T>>;
   delete<B = any, T = any>(url: string, body: B, options?: HttpRequestOptions): Promise<HttpResponse<T>>;
-  
+
   customFetch<T = any>(url: string, options?: RequestInit & HttpRequestOptions): Promise<HttpResponse<T>>;
-  
+
   batchRequests<T extends ReadonlyArray<() => Promise<HttpResponse<any>>>>(
     requests: T
   ): Promise<{ -readonly [K in keyof T]: T[K] extends () => Promise<HttpResponse<infer R>> ? HttpResponse<R> : any }>;
-  
+
   invalidateCache(urlPattern: string): void;
   clearCache(): void;
   getMetrics(): HttpMetrics;
-  
+
   /**
    * Permet d'encapsuler l'exécution d'appels serveur (ex: SSR) avec une requête source.
    */

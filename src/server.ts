@@ -52,26 +52,29 @@ export function createServerHttp(config: CreateHttpConfig = {}): HttpClientInsta
   // This intercepts requests and automatically extracts cookies from the active request context
   http.interceptors.request.use(async (options) => {
     try {
-      // Try to get request from TanStack Start context
+      // Try to get request from context
       let request: any = null;
 
-      // First, try the TanStack Start pattern (optional dependency)
-      try {
-        // Use optional chaining and dynamic import to handle missing TanStack Start
-        // Note: TanStack Start is optional, so we safely ignore missing module errors
-        // @ts-ignore - TanStack Start is optional
-        const module = await import("@tanstack/react-start/server");
-        request = module?.getRequest?.();
-      } catch {
-        // TanStack Start not available, skip
-      }
-
-      // If no request found, try from config's requestContext
-      if (!request && config.requestContext) {
+      // Priority 1: Explicit requestContext from config (highest priority)
+      if (config.requestContext && !request) {
         try {
           request = config.requestContext();
         } catch {
           // Ignore if requestContext fails
+        }
+      }
+
+      // Priority 2: Try TanStack Start auto-detection (optional dependency)
+      if (!request) {
+        try {
+          // Dynamically import TanStack Start to avoid hard dependency
+          // @ts-ignore - TanStack Start is optional
+          const module = await import("@tanstack/react-start/server");
+          if (module?.getRequest) {
+            request = module.getRequest();
+          }
+        } catch {
+          // TanStack Start not available or failed to load, skip
         }
       }
 

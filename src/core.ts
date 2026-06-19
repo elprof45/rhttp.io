@@ -6,6 +6,7 @@ import type {
   HttpResponse,
   RetryConfig,
   CacheConfig,
+  CacheStrategy,
   CsrfConfig,
   ObservabilityConfig,
   AuthConfig,
@@ -99,6 +100,7 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
   const cacheConfig: CacheConfig = {
     enabled: config.cache?.enabled ?? false,
     ttl: config.cache?.ttl ?? 60000,
+    strategy: config.cache?.strategy ?? "network-first",
     keyBuilder: config.cache?.keyBuilder,
   };
 
@@ -224,19 +226,36 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
   const requestInterceptors = new InterceptorManagerImpl<any>();
   const responseInterceptors = new InterceptorManagerImpl<HttpResponse<any>>();
 
-  // Helper to merge headers case-insensitively
-  function mergeHeaders(defaultHeaders?: Record<string, string>, reqHeaders?: Record<string, string>): Record<string, string> {
+  // Helper to merge headers case-insensitively from multiple sources
+  // Priority (lowest to highest): defaultFetchOptions.headers -> defaultHeaders -> request headers
+  function mergeHeaders(
+    fetchOptionsHeaders?: Record<string, string>,
+    defaultHeaders?: Record<string, string>,
+    reqHeaders?: Record<string, string>
+  ): Record<string, string> {
     const merged: Record<string, string> = {};
+
+    // 1. Start with defaultFetchOptions.headers (lowest priority)
+    if (fetchOptionsHeaders) {
+      for (const [key, val] of Object.entries(fetchOptionsHeaders)) {
+        merged[key.toLowerCase()] = val;
+      }
+    }
+
+    // 2. Merge defaultHeaders (medium priority)
     if (defaultHeaders) {
       for (const [key, val] of Object.entries(defaultHeaders)) {
         merged[key.toLowerCase()] = val;
       }
     }
+
+    // 3. Merge request headers (highest priority)
     if (reqHeaders) {
       for (const [key, val] of Object.entries(reqHeaders)) {
         merged[key.toLowerCase()] = val;
       }
     }
+
     return merged;
   }
 
@@ -275,7 +294,12 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
       : (cacheConfig.keyBuilder || ((u, opts) => `GET:${u}:${JSON.stringify(opts.params ?? {})}`));
 
     // Determine cache strategy
-    const cacheStrategy = finalOptions.cacheStrategy || "network-first";
+    // Priority: request override > global config > default
+    const cacheStrategy: CacheStrategy =
+      finalOptions.cacheStrategy ||
+      (typeof cacheOverride === "object" && cacheOverride.strategy) ||
+      cacheConfig.strategy ||
+      "network-first";
 
     let cacheKey = "";
     if (isGet && isCacheEnabled) {
@@ -461,7 +485,11 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
 
     // 1. Trace ID / Request ID
     const requestId = options.requestId || options.headers?.["x-request-id"] || generateRequestId();
-    const finalHeaders = mergeHeaders(config.defaultHeaders, options.headers);
+    const finalHeaders = mergeHeaders(
+      (config.defaultFetchOptions?.headers as Record<string, string>) || {},
+      config.defaultHeaders,
+      options.headers
+    );
     if (observabilityConfig.tracing) {
       finalHeaders["x-request-id"] = requestId;
     }
