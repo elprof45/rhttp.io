@@ -1,7 +1,9 @@
 import { createHttp } from "./core";
 import type { CreateHttpConfig, HttpClientInstance } from "./types";
 
-export function createClientHttp(config: CreateHttpConfig = {}): HttpClientInstance {
+export function createClientHttp(
+  config: CreateHttpConfig = {},
+): HttpClientInstance {
   return createHttp({
     ...config,
     csrf: {
@@ -18,4 +20,10 @@ export function createClientHttp(config: CreateHttpConfig = {}): HttpClientInsta
 export * from "./core";
 export * from "./types";
 export * from "./errors";
-export { buildUrl, getCookie, parseHeaders, parseResponse, generateRequestId } from "./utils";
+export {
+  buildUrl,
+  getCookie,
+  parseHeaders,
+  parseResponse,
+  generateRequestId,
+} from "./utils";
