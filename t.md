@@ -1,7 +1,3 @@
-Voici une version reformulée, plus claire et plus précise de ton prompt, en gardant tes mots, tes idées et tes exemples de code :
-
----
-
 Je veux que tu fasses un **review complet du module `rhttp.io`** afin de **corriger, améliorer, unifier et ajouter des implémentations**, **sans casser le code actuel**.
 
 Tu dois **parcourir chaque fichier** dans `./src/**/*` et **revoir chaque implémentation** pour la corriger si nécessaire, la rendre plus cohérente, plus simple, plus robuste et mieux structurée.
@@ -20,7 +16,7 @@ Ton objectif est de faire un audit complet du module et de proposer des correcti
 - Détecter les incohérences, duplications, mauvaises abstractions et erreurs d’architecture.
 - Proposer une version plus propre, plus maintenable et plus intuitive.
 
-## Côté Serveur (`@http.io/server`)
+## Côté Serveur (`rhttp.io/server`)
 
 Je veux une extraction et un transfert transparents des en-têtes, notamment :
 
@@ -70,7 +66,7 @@ export function createServerHttp(
 }
 ```
 
-## Côté Client (`@http.io/client`)
+## Côté Client (`rhttp.io/client`)
 
 Je veux une injection automatique de :
 
