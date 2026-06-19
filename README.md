@@ -71,7 +71,7 @@ try {
 }
 ```
 
-### Browser Client with CSRF
+### Browser Client with CSRF & Auth Token
 
 ```typescript
 import { createClientHttp } from "rhttp.io/client";
@@ -83,6 +83,14 @@ const http = createClientHttp({
 // CSRF protection is automatically enabled
 // Token is prefetched and injected on POST/PUT/PATCH/DELETE
 await http.post("/orders", payload); // ✓ CSRF token auto-injected
+
+// Authentication token is automatically injected from localStorage
+// To set token: localStorage.setItem("access_token", "your-jwt-token")
+const { data } = await http.get("/protected-data"); // ✓ Authorization header auto-injected
+
+// Credentials (cookies) are automatically included in all requests
+// This enables secure cookie-based sessions
+const { data: profile } = await http.get("/user/profile"); // ✓ Cookies included
 ```
 
 ### Server Client with Cookie Forwarding
@@ -95,10 +103,18 @@ const http = createServerHttp({
 });
 
 // Use in TanStack Start Server Function
+// Cookies are automatically forwarded - no withRequest needed!
 export const fetchUserOrders = createServerFn({ method: "GET" }).handler(
+  async () => {
+    const { data } = await http.get<Order[]>("/orders");
+    return data;
+  }
+);
+
+// For legacy compatibility, withRequest() is still available
+export const fetchUserOrdersLegacy = createServerFn({ method: "GET" }).handler(
   async ({ request }) => {
     return http.withRequest(request, async () => {
-      // Cookies from the incoming request are auto-forwarded
       const { data } = await http.get<Order[]>("/orders");
       return data;
     });

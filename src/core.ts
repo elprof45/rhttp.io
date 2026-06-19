@@ -8,6 +8,7 @@ import type {
   CacheConfig,
   CsrfConfig,
   ObservabilityConfig,
+  AuthConfig,
   InterceptorManager,
   InterceptorHandler,
   HttpMetrics,
@@ -114,6 +115,13 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
     logger: config.observability?.logger ?? false,
     tracing: config.observability?.tracing ?? false,
     metrics: config.observability?.metrics ?? false,
+  };
+
+  const authConfig: Partial<AuthConfig> = {
+    forwardCookies: config.auth?.forwardCookies ?? false,
+    accessToken: config.auth?.accessToken,
+    scheme: config.auth?.scheme ?? "Bearer",
+    getToken: config.auth?.getToken,
   };
 
   // Setup logging helper
@@ -255,11 +263,11 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
 
     // Caching configuration resolution
     const cacheOverride = finalOptions.cache;
-    const isCacheEnabled = cacheOverride !== false && 
+    const isCacheEnabled = cacheOverride !== false &&
       (typeof cacheOverride === "object" ? (cacheOverride.enabled ?? true) : (cacheConfig.enabled));
-    
+
     const resolvedTtl = (typeof cacheOverride === "object" && cacheOverride.ttl !== undefined)
-      ? cacheOverride.ttl 
+      ? cacheOverride.ttl
       : (cacheConfig.ttl);
 
     const resolvedKeyBuilder = (typeof cacheOverride === "object" && cacheOverride.keyBuilder)
@@ -272,7 +280,7 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
     let cacheKey = "";
     if (isGet && isCacheEnabled) {
       cacheKey = resolvedKeyBuilder(finalOptions.url, finalOptions);
-      
+
       const cached = cacheMap.get(cacheKey);
       if (cached && cached.expiry > Date.now()) {
         logger.debug(`Cache hit (fresh) for ${finalOptions.url}`);
@@ -328,7 +336,7 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
           // Check if retryable - either by status code or custom shouldRetry logic
           const status = err instanceof HttpError ? err.status : 0;
           const isRetryableStatus = status === 0 || retryOpts.statusCodes.includes(status);
-          
+
           // If no custom shouldRetry, check status codes
           if (!retryOpts.shouldRetry && !isRetryableStatus) {
             throw err;
@@ -460,7 +468,7 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
 
     // 2. Cookie forwarding
     const activeReq = getActiveRequest(config.requestContext);
-    if (config.auth?.forwardCookies && activeReq) {
+    if (authConfig.forwardCookies && activeReq) {
       const cookies = activeReq.headers?.get?.("cookie") || activeReq.headers?.cookie || "";
       if (cookies) {
         finalHeaders["cookie"] = cookies;
@@ -477,16 +485,16 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
     }
 
     // 4. Authorization headers (static or dynamic)
-    if (config.auth?.accessToken) {
-      const scheme = config.auth.scheme || "Bearer";
-      finalHeaders["authorization"] = `${scheme} ${config.auth.accessToken}`;
+    if (authConfig.accessToken) {
+      const scheme = authConfig.scheme || "Bearer";
+      finalHeaders["authorization"] = `${scheme} ${authConfig.accessToken}`;
     }
 
-    if (config.auth?.getToken) {
+    if (authConfig.getToken) {
       try {
-        const token = await config.auth.getToken();
+        const token = await authConfig.getToken();
         if (token) {
-          const scheme = config.auth.scheme || "Bearer";
+          const scheme = authConfig.scheme || "Bearer";
           finalHeaders["authorization"] = `${scheme} ${token}`;
         }
       } catch (err) {
@@ -495,8 +503,8 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
     }
 
     // 5. CSRF protection injection
-    const isCsrfRequired = options.csrf !== false && 
-      csrfConfig.enabled && 
+    const isCsrfRequired = options.csrf !== false &&
+      csrfConfig.enabled &&
       csrfConfig.methods.map((m) => m.toUpperCase()).includes(method);
 
     if (isCsrfRequired) {
@@ -525,9 +533,9 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
     // Parse / format JSON bodies
     let finalBody = options.body;
     if (finalBody !== undefined && finalBody !== null) {
-      const isRawBody = finalBody instanceof Blob || 
-                        finalBody instanceof FormData || 
-                        finalBody instanceof URLSearchParams || 
+      const isRawBody = finalBody instanceof Blob ||
+                        finalBody instanceof FormData ||
+                        finalBody instanceof URLSearchParams ||
                         typeof finalBody === "string";
       if (!isRawBody && typeof finalBody === "object") {
         finalBody = JSON.stringify(finalBody);
@@ -754,7 +762,7 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
 
     // Wrap with Circuit Breaker and Request Pool
     let responsePromise: Promise<HttpResponse<any>>;
-    
+
     try {
       responsePromise = circuitBreaker.execute(async () => {
         return requestPool.execute(async () => {
@@ -836,12 +844,12 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
     delete(url: string, bodyOrOptions?: any, options?: HttpRequestOptions): Promise<HttpResponse<any>> {
       // Intelligently check if second argument is HttpRequestOptions or Request Body
       const isOptions = bodyOrOptions && (
-        "params" in bodyOrOptions || 
-        "headers" in bodyOrOptions || 
-        "cache" in bodyOrOptions || 
-        "retry" in bodyOrOptions || 
-        "timeout" in bodyOrOptions || 
-        "deduplicate" in bodyOrOptions || 
+        "params" in bodyOrOptions ||
+        "headers" in bodyOrOptions ||
+        "cache" in bodyOrOptions ||
+        "retry" in bodyOrOptions ||
+        "timeout" in bodyOrOptions ||
+        "deduplicate" in bodyOrOptions ||
         "signal" in bodyOrOptions
       );
 

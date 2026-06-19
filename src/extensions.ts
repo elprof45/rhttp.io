@@ -1,12 +1,14 @@
 /**
  * HTTP.io Extensions - Additional Features
- * 
+ *
  * These extensions add functionality to the core HTTP client:
  * - GraphQL support
  * - Schema validation (Zod)
  * - Request compression
  * - Enhanced error handling
  */
+
+import type { HttpResponse } from "./types";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GraphQL Extension
@@ -31,11 +33,11 @@ export interface GraphQLResponse<T> {
 
 /**
  * Create a GraphQL client wrapper
- * 
+ *
  * @example
  * ```typescript
  * const graphqlClient = withGraphQL(http, "/graphql");
- * 
+ *
  * const { data } = await graphqlClient.query<{ posts: Post[] }>({
  *   query: `query { posts { id title } }`,
  * });
@@ -44,15 +46,15 @@ export interface GraphQLResponse<T> {
 export function withGraphQL(http: any, endpoint: string = "/graphql") {
   return {
     async query<T = any>(request: GraphQLRequest) {
-      const response = await http.post<GraphQLRequest, GraphQLResponse<T>>(
-        endpoint,
-        request
-      );
+      const response = (await http.post(endpoint, request)) as HttpResponse<GraphQLResponse<T>>;
 
       if (response.data.errors && response.data.errors.length > 0) {
-        const error = new Error(response.data.errors[0].message);
-        (error as any).graphqlErrors = response.data.errors;
-        throw error;
+        const firstError = response.data.errors[0];
+        if (firstError) {
+          const error = new Error(firstError.message);
+          (error as any).graphqlErrors = response.data.errors;
+          throw error;
+        }
       }
 
       return response.data.data;
@@ -80,13 +82,13 @@ export interface SchemaValidator {
 
 /**
  * Add schema validation to requests
- * 
+ *
  * @example
  * ```typescript
  * import { z } from "zod";
- * 
+ *
  * const PostSchema = z.object({ id: z.string(), title: z.string() });
- * 
+ *
  * const { data: posts } = await http.get("/posts", {
  *   schema: z.array(PostSchema),
  * });
@@ -96,10 +98,10 @@ export interface SchemaValidator {
 export function withSchemaValidation(http: any) {
   return {
     ...http,
-    
+
     async get<T = any>(url: string, options?: any) {
       const response = await http.get(url, options);
-      
+
       if (options?.schema) {
         try {
           response.data = options.schema.parse(response.data);
@@ -107,13 +109,13 @@ export function withSchemaValidation(http: any) {
           throw new Error(`Schema validation failed: ${(error as any).message}`);
         }
       }
-      
+
       return response;
     },
 
     async post<B = any, T = any>(url: string, body?: B, options?: any) {
       const response = await http.post(url, body, options);
-      
+
       if (options?.schema) {
         try {
           response.data = options.schema.parse(response.data);
@@ -121,7 +123,7 @@ export function withSchemaValidation(http: any) {
           throw new Error(`Schema validation failed: ${(error as any).message}`);
         }
       }
-      
+
       return response;
     },
   };
@@ -151,15 +153,15 @@ export function createCompressionMiddleware(config: Partial<CompressionConfig> =
 
   return {
     name: "compression",
-    
+
     async beforeRequest(requestConfig: any) {
       if (!fullConfig.enabled || !requestConfig.body) {
         return requestConfig;
       }
 
       // Check body size
-      const bodyString = typeof requestConfig.body === "string" 
-        ? requestConfig.body 
+      const bodyString = typeof requestConfig.body === "string"
+        ? requestConfig.body
         : JSON.stringify(requestConfig.body);
 
       if (bodyString.length < fullConfig.threshold) {
@@ -263,7 +265,7 @@ export class ConflictError extends Error {
 export function createErrorHandlingMiddleware() {
   return {
     name: "error-handler",
-    
+
     onError(error: any) {
       // Handle GraphQL errors
       if (error.graphqlErrors) {
@@ -385,7 +387,7 @@ export class AdaptiveRetryStrategy {
 
     // If endpoint has high failure rate, retry more aggressively
     const failureRate = stat.failures / (stat.successes + stat.failures + 1);
-    
+
     if (failureRate > 0.5) {
       // High failure rate: allow more retries
       return attemptNumber < maxAttempts + 2;

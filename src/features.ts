@@ -87,21 +87,21 @@ export interface RequestProfile {
   url: string;
   method: string;
   timestamp: number;
-  
+
   // Timing breakdown
   startTime: number;
   endTime: number;
   duration: number;
-  
+
   // Size metrics
   requestSize?: number;
   responseSize?: number;
-  
+
   // Status
   status: number;
   cached: boolean;
   deduplicated: boolean;
-  
+
   // Error info
   error?: string;
 }
@@ -119,6 +119,7 @@ export class RequestProfiler {
       startTime: Date.now(),
       endTime: 0,
       duration: 0,
+      status: 0,
       cached: false,
       deduplicated: false,
     };
@@ -127,9 +128,14 @@ export class RequestProfiler {
 
     // Cleanup old profiles if limit exceeded
     if (this.profiles.size > this.maxProfiles) {
-      const oldestKey = Array.from(this.profiles.entries())
-        .sort((a, b) => a[1].timestamp - b[1].timestamp)[0][0];
-      this.profiles.delete(oldestKey);
+      const entries = Array.from(this.profiles.entries());
+      if (entries.length > 0) {
+        const sorted = entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
+        const oldestKey = sorted[0]?.[0];
+        if (oldestKey) {
+          this.profiles.delete(oldestKey);
+        }
+      }
     }
 
     return profile;
@@ -235,7 +241,24 @@ export class InMemoryStructuredLogger implements StructuredLogger {
     // Also output to console for debugging
     const prefix = `[${new Date(entry.timestamp).toISOString()}] [${level.toUpperCase()}]`;
     const args = context ? [prefix, message, context] : [prefix, message];
-    console[level as any](...args);
+
+    // Use switch to ensure type safety
+    switch (level) {
+      case "debug":
+        console.debug(...args);
+        break;
+      case "info":
+        console.info(...args);
+        break;
+      case "warn":
+        console.warn(...args);
+        break;
+      case "error":
+        console.error(...args);
+        break;
+      default:
+        console.log(...args);
+    }
   }
 
   debug(message: string, context?: Record<string, any>) {
