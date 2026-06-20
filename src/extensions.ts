@@ -64,7 +64,15 @@ export function withGraphQL(http: any, endpoint: string = "/graphql") {
         );
       }
 
-      return response.data.data as T;
+      const data = response.data.data;
+      if (data && typeof data === "object") {
+        const keys = Object.keys(data);
+        if (keys.length === 1 && keys[0]) {
+          return (data as any)[keys[0]] as T;
+        }
+      }
+
+      return data as T;
     },
 
     async mutation<T = any>(request: GraphQLRequest): Promise<T> {

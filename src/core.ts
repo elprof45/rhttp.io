@@ -100,7 +100,7 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
   const cacheConfig: CacheConfig = {
     enabled: config.cache?.enabled ?? false,
     ttl: config.cache?.ttl ?? 60000,
-    strategy: config.cache?.strategy ?? "network-first",
+    strategy: config.cache?.strategy ?? "cache-first",
     keyBuilder: config.cache?.keyBuilder,
   };
 
@@ -305,10 +305,12 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
     if (isGet && isCacheEnabled) {
       cacheKey = resolvedKeyBuilder(finalOptions.url, finalOptions);
 
-      const cached = cacheMap.get(cacheKey);
-      if (cached && cached.expiry > Date.now()) {
-        logger.debug(`Cache hit (fresh) for ${finalOptions.url}`);
-        return cloneResponse(cached.response);
+      if (cacheStrategy !== "network-first" && cacheStrategy !== "network-only") {
+        const cached = cacheMap.get(cacheKey);
+        if (cached && cached.expiry > Date.now()) {
+          logger.debug(`Cache hit (fresh) for ${finalOptions.url}`);
+          return cloneResponse(cached.response);
+        }
       }
     }
 
@@ -321,78 +323,96 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
 
     // Single request execution with retry wrapper
     const executeOperation = async () => {
-      const activeRetry = finalOptions.retry;
-      if (activeRetry === false) {
-        return executeSingleRequest(finalOptions);
-      }
+      const startTime = Date.now();
+      const run = async () => {
+        const activeRetry = finalOptions.retry;
+        if (activeRetry === false) {
+          return executeSingleRequest(finalOptions);
+        }
 
-      const retryOpts: RetryConfig = {
-        attempts: typeof activeRetry === "object" && activeRetry.attempts !== undefined
-          ? activeRetry.attempts
-          : (retryConfig.attempts),
-        strategy: typeof activeRetry === "object" && activeRetry.strategy !== undefined
-          ? activeRetry.strategy
-          : (retryConfig.strategy),
-        delay: typeof activeRetry === "object" && activeRetry.delay !== undefined
-          ? activeRetry.delay
-          : (retryConfig.delay),
-        maxDelay: typeof activeRetry === "object" && activeRetry.maxDelay !== undefined
-          ? activeRetry.maxDelay
-          : (retryConfig.maxDelay),
-        statusCodes: typeof activeRetry === "object" && activeRetry.statusCodes !== undefined
-          ? activeRetry.statusCodes
-          : (retryConfig.statusCodes),
-        shouldRetry: typeof activeRetry === "object" && activeRetry.shouldRetry !== undefined
-          ? activeRetry.shouldRetry
-          : retryConfig.shouldRetry,
-      };
+        const retryOpts: RetryConfig = {
+          attempts: typeof activeRetry === "object" && activeRetry.attempts !== undefined
+            ? activeRetry.attempts
+            : (retryConfig.attempts),
+          strategy: typeof activeRetry === "object" && activeRetry.strategy !== undefined
+            ? activeRetry.strategy
+            : (retryConfig.strategy),
+          delay: typeof activeRetry === "object" && activeRetry.delay !== undefined
+            ? activeRetry.delay
+            : (retryConfig.delay),
+          maxDelay: typeof activeRetry === "object" && activeRetry.maxDelay !== undefined
+            ? activeRetry.maxDelay
+            : (retryConfig.maxDelay),
+          statusCodes: typeof activeRetry === "object" && activeRetry.statusCodes !== undefined
+            ? activeRetry.statusCodes
+            : (retryConfig.statusCodes),
+          shouldRetry: typeof activeRetry === "object" && activeRetry.shouldRetry !== undefined
+            ? activeRetry.shouldRetry
+            : retryConfig.shouldRetry,
+        };
 
-      let attempt = 1;
-      while (true) {
-        try {
-          return await executeSingleRequest(finalOptions);
-        } catch (err: any) {
-          attempt++;
-          if (attempt > retryOpts.attempts) {
-            throw err;
-          }
-
-          // Check if retryable - either by status code or custom shouldRetry logic
-          const status = err instanceof HttpError ? err.status : 0;
-          const isRetryableStatus = status === 0 || retryOpts.statusCodes.includes(status);
-
-          // If no custom shouldRetry, check status codes
-          if (!retryOpts.shouldRetry && !isRetryableStatus) {
-            throw err;
-          }
-
-          // If custom shouldRetry exists, use it (regardless of status)
-          if (retryOpts.shouldRetry) {
-            const check = await retryOpts.shouldRetry(err, attempt - 1);
-            if (!check) {
+        let attempt = 1;
+        while (true) {
+          try {
+            return await executeSingleRequest(finalOptions);
+          } catch (err: any) {
+            attempt++;
+            if (attempt > retryOpts.attempts) {
               throw err;
             }
-          } else if (!isRetryableStatus) {
-            // No custom logic and not retryable status
-            throw err;
-          }
 
-          // Compute delay
-          let waitTime = 0;
-          if (retryOpts.strategy === "linear") {
-            waitTime = retryOpts.delay * attempt;
-          } else if (retryOpts.strategy === "exponential") {
-            waitTime = retryOpts.delay * Math.pow(2, attempt);
-          } else if (retryOpts.strategy === "none") {
-            waitTime = 0;
-          }
-          waitTime = Math.min(waitTime, retryOpts.maxDelay);
+            // Check if retryable - either by status code or custom shouldRetry logic
+            const status = err instanceof HttpError ? err.status : 0;
+            const isRetryableStatus = status === 0 || retryOpts.statusCodes.includes(status);
 
-          logger.warn(`Attempt ${attempt} failed for ${finalOptions.url}. Retrying in ${waitTime}ms... Error: ${err.message}`);
-          if (waitTime > 0) {
-            await sleep(waitTime);
+            // If no custom shouldRetry, check status codes
+            if (!retryOpts.shouldRetry && !isRetryableStatus) {
+              throw err;
+            }
+
+            // If custom shouldRetry exists, use it (regardless of status)
+            if (retryOpts.shouldRetry) {
+              const check = await retryOpts.shouldRetry(err, attempt - 1);
+              if (!check) {
+                throw err;
+              }
+            } else if (!isRetryableStatus) {
+              // No custom logic and not retryable status
+              throw err;
+            }
+
+            // Compute delay
+            let waitTime = 0;
+            if (retryOpts.strategy === "linear") {
+              waitTime = retryOpts.delay * attempt;
+            } else if (retryOpts.strategy === "exponential") {
+              waitTime = retryOpts.delay * Math.pow(2, attempt);
+            } else if (retryOpts.strategy === "none") {
+              waitTime = 0;
+            }
+            waitTime = Math.min(waitTime, retryOpts.maxDelay);
+
+            logger.warn(`Attempt ${attempt} failed for ${finalOptions.url}. Retrying in ${waitTime}ms... Error: ${err.message}`);
+            if (waitTime > 0) {
+              await sleep(waitTime);
+            }
           }
         }
+      };
+
+      try {
+        const res = await run();
+        if (observabilityConfig.metrics) {
+          recordMetric(res.status, res.durationMs, true);
+        }
+        return res;
+      } catch (err: any) {
+        if (observabilityConfig.metrics) {
+          const status = err.status || 0;
+          const duration = err.durationMs || (Date.now() - startTime);
+          recordMetric(status, duration, false);
+        }
+        throw err;
       }
     };
 
@@ -495,8 +515,14 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
     }
 
     // 2. Cookie forwarding
+    const currentAuth = config.auth || {};
+    const forwardCookies = currentAuth.forwardCookies ?? false;
+    const accessToken = currentAuth.accessToken;
+    const scheme = currentAuth.scheme ?? "Bearer";
+    const getToken = currentAuth.getToken;
+
     const activeReq = getActiveRequest(config.requestContext);
-    if (authConfig.forwardCookies && activeReq) {
+    if (forwardCookies && activeReq) {
       const cookies = activeReq.headers?.get?.("cookie") || activeReq.headers?.cookie || "";
       if (cookies) {
         finalHeaders["cookie"] = cookies;
@@ -513,16 +539,14 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
     }
 
     // 4. Authorization headers (static or dynamic)
-    if (authConfig.accessToken) {
-      const scheme = authConfig.scheme || "Bearer";
-      finalHeaders["authorization"] = `${scheme} ${authConfig.accessToken}`;
+    if (accessToken) {
+      finalHeaders["authorization"] = `${scheme} ${accessToken}`;
     }
 
-    if (authConfig.getToken) {
+    if (getToken) {
       try {
-        const token = await authConfig.getToken();
+        const token = await getToken();
         if (token) {
-          const scheme = authConfig.scheme || "Bearer";
           finalHeaders["authorization"] = `${scheme} ${token}`;
         }
       } catch (err) {
@@ -597,9 +621,6 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
           headers: finalHeaders,
         });
         timeoutErr.options = options;
-        if (observabilityConfig.metrics) {
-          recordMetric(408, durationMs, false);
-        }
         logger.error(`✕ Timeout ${method} ${finalUrl} after ${durationMs}ms`, timeoutErr);
         throw timeoutErr;
       } else {
@@ -611,9 +632,6 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
           originalError: err,
         });
         networkErr.options = options;
-        if (observabilityConfig.metrics) {
-          recordMetric(0, durationMs, false);
-        }
         logger.error(`✕ Network Error ${method} ${finalUrl}`, networkErr);
         throw networkErr;
       }
@@ -646,9 +664,6 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
         }
       }
 
-      if (observabilityConfig.metrics) {
-        recordMetric(304, durationMs, true);
-      }
       logger.info(`← HTTP 304 (cached) ${finalUrl} in ${durationMs}ms`, { requestId });
       return httpResponse;
     }
@@ -669,9 +684,6 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
             url: finalUrl,
             options,
           });
-          if (observabilityConfig.metrics) {
-            recordMetric(rawResponse.status, durationMs, false);
-          }
           logger.error(`✕ Validation Error ${method} ${finalUrl}`, validationErr);
           throw validationErr;
         }
@@ -705,9 +717,6 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
       }
       httpResponse.data = transformedData;
 
-      if (observabilityConfig.metrics) {
-        recordMetric(rawResponse.status, durationMs, true);
-      }
       logger.info(`← HTTP ${rawResponse.status} ${finalUrl} in ${durationMs}ms`, { requestId });
       return httpResponse;
     } else {
@@ -728,9 +737,6 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
         options,
       });
 
-      if (observabilityConfig.metrics) {
-        recordMetric(rawResponse.status, durationMs, false);
-      }
       logger.error(`✕ HTTP ${rawResponse.status} ${finalUrl} in ${durationMs}ms`, httpErr);
       throw httpErr;
     }
@@ -945,14 +951,15 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
           controller.abort();
           abortControllers.delete(requestId);
         }
+        pollingManager.stop(requestId);
       } else {
         // Cancel all
         for (const controller of abortControllers.values()) {
           controller.abort();
         }
         abortControllers.clear();
+        pollingManager.stopAll();
       }
-      pollingManager.stopAll();
     },
 
     getHistory() {
@@ -969,6 +976,18 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
 
     resetCircuitBreaker(): void {
       circuitBreaker.reset();
+    },
+
+    getCircuitBreaker() {
+      return circuitBreaker;
+    },
+
+    getPoolStats() {
+      const stats = requestPool.getStats();
+      return {
+        activeRequests: stats.activeRequests,
+        queueLength: stats.queueLength,
+      };
     },
   };
 

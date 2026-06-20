@@ -34,6 +34,7 @@ export class CircuitBreaker {
   private failures = 0;
   private successes = 0;
   private lastFailureTime = 0;
+  private rejectedCount = 0;
   private config: CircuitBreakerConfig;
 
   constructor(config: Partial<CircuitBreakerConfig> = {}) {
@@ -43,6 +44,19 @@ export class CircuitBreaker {
       successThreshold: config.successThreshold ?? 2,
       timeout: config.timeout ?? 60000,
     };
+  }
+
+  isOpen() {
+    if (this.state === "open") {
+      const elapsed = Date.now() - this.lastFailureTime;
+      if (elapsed >= this.config.timeout) {
+        this.state = "half-open";
+        this.successes = 0;
+        return false;
+      }
+      return true;
+    }
+    return false;
   }
 
   async execute<T>(fn: () => Promise<T>): Promise<T> {
@@ -56,6 +70,7 @@ export class CircuitBreaker {
         this.state = "half-open";
         this.successes = 0;
       } else {
+        this.rejectedCount++;
         throw new Error("Circuit breaker is OPEN - request blocked");
       }
     }
@@ -90,10 +105,22 @@ export class CircuitBreaker {
   }
 
   getStatus() {
+    let timeUntilHalfOpen = 0;
+    if (this.state === "open") {
+      const elapsed = Date.now() - this.lastFailureTime;
+      if (elapsed >= this.config.timeout) {
+        this.state = "half-open";
+        this.successes = 0;
+      } else {
+        timeUntilHalfOpen = Math.max(0, this.config.timeout - elapsed);
+      }
+    }
     return {
       state: this.state,
       failures: this.failures,
       successes: this.successes,
+      rejectedCount: this.rejectedCount,
+      timeUntilHalfOpen,
     };
   }
 
@@ -102,6 +129,7 @@ export class CircuitBreaker {
     this.failures = 0;
     this.successes = 0;
     this.lastFailureTime = 0;
+    this.rejectedCount = 0;
   }
 }
 
@@ -173,57 +201,71 @@ export class RequestPool {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export class PollingManager {
-  private timers: Map<string, NodeJS.Timeout> = new Map();
+  private defaultOptions: Partial<PollingConfig>;
+  private timers: Map<string, { timer: NodeJS.Timeout; resolve: (value: any) => void }> = new Map();
+
+  constructor(defaultOptions: Partial<PollingConfig> = {}) {
+    this.defaultOptions = defaultOptions;
+  }
 
   async poll<T>(
     fn: () => Promise<T>,
-    config: PollingConfig,
-    requestId: string
+    config?: Partial<PollingConfig>,
+    requestId: string = "default"
   ): Promise<T> {
+    const mergedConfig = {
+      interval: 1000,
+      maxAttempts: Infinity,
+      ...this.defaultOptions,
+      ...config,
+    };
+
     let attempt = 0;
-    const maxAttempts = config.maxAttempts ?? Infinity;
+    const maxAttempts = mergedConfig.maxAttempts ?? Infinity;
 
     return new Promise((resolve, reject) => {
       const executePoll = async () => {
         try {
           if (attempt >= maxAttempts) {
-            clearTimeout(timer);
-            reject(new Error("Max polling attempts reached"));
+            this.timers.delete(requestId);
+            resolve(undefined as any);
             return;
           }
 
           attempt++;
           const result = await fn();
 
-          if (config.stopCondition?.(result)) {
-            clearTimeout(timer);
+          if (mergedConfig.stopCondition?.(result)) {
+            this.timers.delete(requestId);
             resolve(result);
           } else {
-            timer = setTimeout(executePoll, config.interval);
-            this.timers.set(requestId, timer);
+            const timer = setTimeout(executePoll, mergedConfig.interval);
+            this.timers.set(requestId, { timer, resolve });
           }
         } catch (error) {
-          clearTimeout(timer);
+          this.timers.delete(requestId);
           reject(error);
         }
       };
 
-      let timer = setTimeout(executePoll, config.interval);
-      this.timers.set(requestId, timer);
+      const timer = setTimeout(executePoll, mergedConfig.interval);
+      this.timers.set(requestId, { timer, resolve });
     });
   }
 
-  stop(requestId: string) {
-    const timer = this.timers.get(requestId);
-    if (timer) {
-      clearTimeout(timer);
+  stop(requestId: string = "default") {
+    const entry = this.timers.get(requestId);
+    if (entry) {
+      clearTimeout(entry.timer);
+      entry.resolve(undefined);
       this.timers.delete(requestId);
     }
   }
 
   stopAll() {
-    for (const timer of this.timers.values()) {
-      clearTimeout(timer);
+    for (const entry of this.timers.values()) {
+      clearTimeout(entry.timer);
+      entry.resolve(undefined);
     }
     this.timers.clear();
   }

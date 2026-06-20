@@ -463,4 +463,7 @@ export interface HttpClientInstance {
    * Réinitialiser le circuit breaker
    */
   resetCircuitBreaker(): void;
+
+  getCircuitBreaker?(): any;
+  getPoolStats?(): { activeRequests: number; queueLength: number };
 }
