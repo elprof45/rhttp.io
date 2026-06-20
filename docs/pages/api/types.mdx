@@ -1,0 +1,237 @@
+# Types
+
+import { Callout } from 'vocs'
+
+All types are exported from every entry point (`rhttp.io`, `rhttp.io/client`, `rhttp.io/server`, `rhttp.io/react`).
+
+## `HttpRequestOptions`
+
+Options passed per-request to any HTTP method.
+
+```ts
+interface HttpRequestOptions extends Omit<RequestInit, "headers" | "cache"> {
+  params?: Record<string, any>;
+  headers?: Record<string, string>;
+  cache?: boolean | Partial<CacheConfig> | { strategy?: CacheStrategy };
+  retry?: boolean | Partial<RetryConfig>;
+  timeout?: number;
+  deduplicate?: boolean;
+  csrf?: boolean;
+  requestId?: string;
+  hooks?: RequestHooks;
+  cacheStrategy?: CacheStrategy;
+  transformer?: (data: any, response: HttpResponse<any>) => any;
+  polling?: Partial<PollingConfig>;
+  validateResponse?: (data: any) => boolean;
+}
+```
+
+| Field              | Type                                                  | Description                                       |
+| ------------------ | ----------------------------------------------------- | ------------------------------------------------- |
+| `params`           | `Record<string, any>`                                 | Query params (arrays → repeated keys, null/undefined skipped). |
+| `headers`          | `Record<string, string>`                              | Per-request headers (highest priority).            |
+| `cache`            | `boolean \| Partial<CacheConfig> \| {strategy?}`     | Override cache for this request. `true` = enabled with defaults. |
+| `retry`            | `boolean \| Partial<RetryConfig>`                     | `false` disables retry for this request.           |
+| `timeout`          | `number`                                              | Override global timeout (ms).                       |
+| `deduplicate`      | `boolean`                                             | Enable/disable dedup (default: enabled for GET).    |
+| `csrf`             | `boolean`                                             | `false` skips CSRF for this request.               |
+| `requestId`        | `string`                                              | Custom request ID (auto-generated if omitted).       |
+| `hooks`            | `RequestHooks`                                         | Per-request lifecycle hooks.                        |
+| `cacheStrategy`    | `CacheStrategy`                                       | Override cache strategy for this request.           |
+| `transformer`      | `(data, response) => any`                             | Transform response data before returning.           |
+| `polling`          | `Partial<PollingConfig>`                              | Polling options (used with `poll()`).              |
+| `validateResponse` | `(data: any) => boolean`                              | Throw `HttpError("Response validation failed")` if false. |
+
+## `HttpResponse<T>`
+
+The response object returned by every HTTP method.
+
+```ts
+interface HttpResponse<T> {
+  data: T;
+  status: number;
+  statusText: string;
+  headers: Record<string, string>;
+  response: Response;       // native Fetch Response
+  requestId: string;
+  durationMs: number;
+}
+```
+
+## `RetryConfig`
+
+```ts
+interface RetryConfig {
+  attempts: number;    // extra attempts after first failure
+  strategy: "none" | "linear" | "exponential";
+  delay: number;       // initial delay (ms)
+  maxDelay: number;    // cap per-retry delay (ms)
+  statusCodes: number[];
+  shouldRetry?: (error: unknown, attemptNumber: number) => Promise<boolean> | boolean;
+}
+```
+
+## `CacheConfig`
+
+```ts
+interface CacheConfig {
+  enabled: boolean;
+  ttl: number;           // time-to-live (ms)
+  strategy?: CacheStrategy;
+  keyBuilder?: (url: string, options: any) => string;
+}
+```
+
+## `CacheStrategy`
+
+```ts
+type CacheStrategy =
+  | "cache-only"
+  | "network-first"
+  | "cache-first"
+  | "stale-while-revalidate"
+  | "network-only";
+```
+
+## `CsrfConfig`
+
+```ts
+interface CsrfConfig {
+  enabled: boolean;
+  fetchEndpoint: string;
+  cookieName: string;       // default: "csrf-token"
+  headerName: string;       // default: "X-CSRF-Token"
+  methods: string[];        // default: ["POST","PUT","PATCH","DELETE"]
+  prefetch: boolean;
+}
+```
+
+## `AuthConfig`
+
+```ts
+interface AuthConfig {
+  forwardCookies: boolean;
+  accessToken?: string;
+  scheme: string;           // default: "Bearer"
+  getToken?: () => Promise<string | null> | string | null;
+}
+```
+
+## `ObservabilityConfig`
+
+```ts
+interface ObservabilityConfig {
+  logger: boolean | CustomLogger;
+  tracing: boolean;         // injects x-request-id header
+  metrics: boolean;          // collects HttpMetrics
+}
+```
+
+## `CustomLogger`
+
+```ts
+interface CustomLogger {
+  debug: (...args: any[]) => void;
+  info: (...args: any[]) => void;
+  warn: (...args: any[]) => void;
+  error: (...args: any[]) => void;
+}
+```
+
+## `CircuitBreakerConfig`
+
+```ts
+interface CircuitBreakerConfig {
+  enabled: boolean;
+  failureThreshold: number;   // failures before opening
+  successThreshold: number;   // successes before closing
+  timeout: number;            // ms before half-open
+}
+```
+
+## `RequestPoolConfig`
+
+```ts
+interface RequestPoolConfig {
+  enabled: boolean;
+  maxConcurrent: number;
+  queueLimit?: number;
+}
+```
+
+## `PollingConfig`
+
+```ts
+interface PollingConfig {
+  interval: number;               // ms between polls
+  maxAttempts?: number;           // max polls before stopping
+  stopCondition?: (result: any) => boolean;
+}
+```
+
+## `ETagConfig`
+
+```ts
+interface ETagConfig {
+  enabled: boolean;
+  storage?: "memory" | "localStorage";
+}
+```
+
+## `RequestHooks`
+
+```ts
+interface RequestHooks {
+  onRequest?: (url: string, options: any) => void | Promise<void>;
+  onSuccess?: (response: HttpResponse<any>) => void | Promise<void>;
+  onError?: (error: any) => void | Promise<void>;
+  onFinally?: () => void | Promise<void>;
+}
+```
+
+## `PluginConfig`
+
+```ts
+interface PluginConfig {
+  name: string;
+  beforeRequest?: (url: string, options: any) => any;
+  afterResponse?: (response: HttpResponse<any>) => any;
+  onError?: (error: any) => any;
+}
+```
+
+## `HttpMetrics`
+
+```ts
+interface HttpMetrics {
+  totalRequests: number;
+  successfulRequests: number;
+  failedRequests: number;
+  durations: number[];
+  statusCodes: Record<number, number>;
+}
+```
+
+## `InterceptorManager<T>` / `InterceptorHandler<T>`
+
+```ts
+interface InterceptorManager<T> {
+  use(
+    onFulfilled: (value: T) => Promise<T> | T,
+    onRejected?: (error: any) => Promise<any> | any,
+  ): InterceptorHandler<T>;
+  eject(id: number): void;
+  clear(): void;
+}
+
+interface InterceptorHandler<T> {
+  id: number;
+  eject: () => void;
+}
+```
+
+## Related
+
+- <Link href="/api/create-http">createHttp()</Link> — how types map to config options.
+- <Link href="/api/client-methods">Client Methods</Link> — how types map to instance methods.
+- <Link href="/api/errors">Errors</Link> — error class types.

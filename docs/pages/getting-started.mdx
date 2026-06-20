@@ -1,0 +1,185 @@
+# Installation & Quick Start
+
+import { Callout, Steps, Link, ContentSwitcher } from 'vocs'
+
+This page walks you through installing rhttp.io and making your first typed request. If you already know which factory you need, jump to the [Client](/client-guide) or [Server](/server-guide) guides.
+
+## Requirements
+
+- **Node.js** `>= 18.0.0` (or any modern browser, Bun, Deno, or edge runtime)
+- **TypeScript** `>= 5.0` (optional, but recommended — the package ships full type definitions)
+
+## Install
+
+<ContentSwitcher>
+
+<tab title="npm">
+
+```bash
+npm install rhttp.io
+```
+
+</tab>
+
+<tab title="pnpm">
+
+```bash
+pnpm add rhttp.io
+```
+
+</tab>
+
+<tab title="yarn">
+
+```bash
+yarn add rhttp.io
+```
+
+</tab>
+
+<tab title="bun">
+
+```bash
+bun add rhttp.io
+```
+
+</tab>
+
+</ContentSwitcher>
+
+<Callout type="note" emoji="🔌">
+rhttp.io has **optional peer dependencies** for the integrations you actually use:
+
+- `react` and `react-dom` — only for the [React adapter](/integrations/react)
+- `@tanstack/react-query` — only for the React adapter
+- `socket.io-client` — only for the [Realtime](/realtime-guide) layer
+
+They are listed as optional peer deps, so you install them only if you use those features. Core HTTP works with zero extra dependencies.
+</Callout>
+
+## Your first request
+
+The simplest entry point is the framework-agnostic core factory `createHttp()`.
+
+```ts
+import { createHttp } from "rhttp.io"; // [!code hl]
+
+// 1. Create a client with a base URL and default headers.
+const http = createHttp({
+  baseURL: "https://api.example.com",
+  defaultHeaders: { "Content-Type": "application/json" }, // [!code hl]
+  timeout: 30_000,
+});
+
+// 2. Make a typed GET request. The generic flows into `response.data`.
+interface User {
+  id: number;
+  name: string;
+  email: string;
+}
+
+const { data, status, durationMs } = await http.get<User>("/users/42"); // [!code hl]
+//    ^? User
+```
+
+The returned object is an [`HttpResponse<T>`](/api/types#httpresponse), which always carries the parsed `data`, the HTTP `status`, response `headers`, a unique `requestId`, and the wall-clock `durationMs`.
+
+## HTTP methods
+
+Every verb returns a `Promise<HttpResponse<T>>`. `post`, `put`, and `patch` accept a body before options; `delete` accepts a body too (useful for bulk deletes).
+
+```ts
+import { createHttp } from "rhttp.io";
+
+const http = createHttp({ baseURL: "https://api.example.com" });
+
+// GET with query params — params are serialized automatically.
+const list = await http.get<User[]>("/users", {
+  params: { page: 1, role: "admin", tags: ["a", "b"] }, // [!code hl]
+});
+
+// POST with a typed body. The second generic narrows the response type.
+const created = await http.post<CreateUserDTO, User>("/users", {
+  name: "Ada Lovelace",
+  email: "ada@example.com",
+});
+
+// PUT / PATCH replace or partially update.
+await http.put<User>("/users/42", { name: "Augusta Ada" });
+await http.patch<User>("/users/42", { lastLoginAt: new Date().toISOString() });
+
+// DELETE — with or without a body.
+await http.delete<void>("/users/42");
+await http.delete<void>("/users", [1, 2, 3]); // bulk delete via body
+```
+
+<Callout type="tip" emoji="💡">
+`params` values that are arrays are appended as repeated keys (`?tags=a&tags=b`), and `null`/`undefined` values are skipped — matching common backend conventions.
+</Callout>
+
+## Error handling
+
+Non-2xx responses reject with an [`HttpError`](/api/errors). Timeouts throw `TimeoutError` and unreachable hosts throw `NetworkError` — both extend `HttpError`, so a single `instanceof` check covers everything.
+
+```ts
+import { createHttp, HttpError, TimeoutError, NetworkError } from "rhttp.io"; // [!code hl]
+
+const http = createHttp({ baseURL: "https://api.example.com", timeout: 5_000 });
+
+try {
+  await http.get("/flaky-endpoint");
+} catch (error) {
+  if (error instanceof HttpError) { // [!code hl]
+    // Covers HttpError, TimeoutError, and NetworkError.
+    console.error(error.status, error.statusText); // e.g. 503 "Service Unavailable"
+    console.error(error.url, error.requestId, error.durationMs);
+    console.error(error.data); // parsed response body (if any)
+  } else {
+    // Truly unexpected — rethrow.
+    throw error;
+  }
+}
+```
+
+<Callout type="warning" emoji="⚠️">
+Always narrow with `instanceof HttpError` rather than reading `error.status` directly — a thrown value is not guaranteed to be an `HttpError`, and TypeScript can't prove otherwise.
+</Callout>
+
+## Choose the right factory
+
+For most apps you'll reach for the environment-specific factories instead of `createHttp()`.
+
+<Steps>
+
+### Browser / Client Components
+
+```ts
+import { createClientHttp } from "rhttp.io/client";
+
+const http = createClientHttp({ baseURL: "https://api.example.com" });
+// credentials: "include", JSON headers, CSRF prefetch, and
+// token auto-injection from localStorage are already on.
+```
+
+### Server / SSR
+
+```ts
+import { createServerHttp } from "rhttp.io/server";
+
+const http = createServerHttp({ baseURL: "https://api.example.com" });
+// cookie forwarding, tracing, and prod metrics are already on.
+```
+
+</Steps>
+
+<Callout type="note" emoji="➡️">
+Both factories are documented in depth in their respective guides:
+<Link href="/client-guide">Client Configuration</Link> and <Link href="/server-guide">Server Configuration</Link>.
+</Callout>
+
+## Where to go next
+
+- <Link href="/client-guide">Client Configuration</Link> — secure browser defaults and smart header merging.
+- <Link href="/server-guide">Server Configuration</Link> — SSR cookie forwarding and TanStack Start.
+- <Link href="/advanced-guide">Advanced Features</Link> — caching, retries, circuit breaker, auth, CSRF, rate limiting.
+- <Link href="/api/create-http">API Reference: <code>createHttp()</code></Link> — every config option.

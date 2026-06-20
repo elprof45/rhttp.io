@@ -1,0 +1,217 @@
+# React & TanStack Query
+
+import { Callout, Link } from 'vocs'
+
+rhttp.io ships a **TanStack Query adapter** via `withReact()`. It takes any `HttpClientInstance` (from `createHttp`, `createClientHttp`, or `createServerHttp`) and adds two methods that produce TanStack Query-compatible objects.
+
+<Callout type="note" emoji="📦">
+Required peer dependencies:
+
+```bash
+npm install @tanstack/react-query react react-dom
+```
+
+The adapter itself has zero runtime imports from TanStack Query — it only returns `queryKey`/`queryFn`/`mutationFn` shapes that TanStack Query consumes.
+</Callout>
+
+## `withReact(httpClient)`
+
+```ts
+import { createClientHttp } from "rhttp.io/client";
+import { withReact } from "rhttp.io/react"; // [!code hl]
+
+const http = withReact(
+  createClientHttp({ baseURL: "https://api.example.com" }),
+);
+// http is now a ReactHttpClientInstance — it has everything HttpClientInstance has,
+// plus .query() and .mutation().
+```
+
+## `query()` — GET requests
+
+Produces `{ queryKey, queryFn }` that you spread into `useQuery()`.
+
+### Signature
+
+```ts
+query<T = any, E = unknown>(config: {
+  url: string;
+  params?: Record<string, any>;
+  headers?: Record<string, string>;
+  timeout?: number;
+  cache?: boolean;
+  retry?: any;
+}): {
+  queryKey: (string | Record<string, any>)[];
+  queryFn: () => Promise<T>;
+};
+```
+
+### Usage with `useQuery`
+
+```tsx
+import { createClientHttp } from "rhttp.io/client";
+import { withReact } from "rhttp.io/react"; // [!code hl]
+import { useQuery } from "@tanstack/react-query";
+
+const http = withReact(createClientHttp({ baseURL: "/api" }));
+
+interface User {
+  id: number;
+  name: string;
+}
+
+function UserProfile({ userId }: { userId: number }) {
+  const { data, isLoading, error } = useQuery<User>({
+    ...http.query({ // [!code hl]
+      url: `/users/${userId}`,
+      params: { include: "profile" },
+    }),
+  });
+
+  if (isLoading) return <p>Loading…</p>;
+  if (error) return <p>Error: {error.message}</p>;
+  return <h1>{data.name}</h1>;
+}
+```
+
+<Callout type="tip" emoji="🔑">
+The generated `queryKey` is `[url, params || {}]`. TanStack Query uses this for deduplication and cache invalidation — it matches the URL and query params automatically.
+</Callout>
+
+## `mutation()` — POST/PUT/PATCH/DELETE
+
+Produces `{ mutationFn }` that you spread into `useMutation()`.
+
+### Signature
+
+```ts
+mutation<B = any, T = any, E = unknown>(config: {
+  method: "POST" | "PUT" | "PATCH" | "DELETE";
+  url: string | ((variables: B) => string);
+}): {
+  mutationFn: (variables: B) => Promise<T>;
+};
+```
+
+### Usage with `useMutation`
+
+```tsx
+import { createClientHttp } from "rhttp.io/client";
+import { withReact } from "rhttp.io/react"; // [!code hl]
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+
+const http = withReact(createClientHttp({ baseURL: "/api" }));
+
+function CreateUserForm() {
+  const queryClient = useQueryClient();
+
+  const { mutate, isPending } = useMutation({
+    ...http.mutation<{ name: string }, User>({ // [!code hl]
+      method: "POST",
+      url: "/users",
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/users"] });
+    },
+  });
+
+  return (
+    <form onSubmit={(e) => {
+      e.preventDefault();
+      const formData = new FormData(e.currentTarget);
+      mutate({ name: formData.get("name") as string });
+    }}>
+      <input name="name" />
+      <button disabled={isPending}>Create</button>
+    </form>
+  );
+}
+```
+
+### Dynamic URL with variables
+
+When `url` is a function, it receives the mutation variables and returns the URL — perfect for parameterized endpoints.
+
+```tsx
+const { mutate } = useMutation({
+  ...http.mutation<number, void>({
+    method: "DELETE",
+    url: (id) => `/users/${id}`, // [!code hl]
+  }),
+});
+
+mutate(42); // DELETE /users/42
+```
+
+## TanStack Query options
+
+`query()` passes `headers`, `timeout`, `cache`, and `retry` directly to the underlying `http.get()` call. All TanStack Query options (`staleTime`, `refetchInterval`, `enabled`, etc.) go **outside** the spread:
+
+```tsx
+const { data } = useQuery({
+  ...http.query({ url: "/users", params: { page } }),
+  staleTime: 5 * 60 * 1000,  // 5 minutes — TanStack Query level // [!code hl]
+  refetchInterval: 30_000,   // refetch every 30s
+  enabled: !!userId,          // pause query when userId is falsy
+});
+```
+
+<Callout type="note" emoji="🔄">
+`withReact()` does **not** implement caching, refetching, or invalidation itself. All of that is delegated to TanStack Query. The `cache` option passed to `query()` controls the **HTTP-level** cache inside rhttp.io (which is separate from TanStack Query's cache).
+</Callout>
+
+## Full example: a users page
+
+```tsx
+import { createClientHttp } from "rhttp.io/client";
+import { withReact } from "rhttp.io/react"; // [!code hl]
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+const http = withReact(createClientHttp({ baseURL: "https://api.example.com" }));
+
+interface User {
+  id: number;
+  name: string;
+  email: string;
+}
+
+function UsersPage() {
+  const { data: users, isLoading } = useQuery<User[]>({
+    ...http.query({ url: "/users", params: { limit: 50 } }),
+  });
+
+  const queryClient = useQueryClient();
+
+  const { mutate: deleteUser } = useMutation({
+    ...http.mutation<number, void>({
+      method: "DELETE",
+      url: (id) => `/users/${id}`,
+    }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/users"] }),
+  });
+
+  if (isLoading) return <p>Loading…</p>;
+
+  return (
+    <table>
+      <thead><tr><th>Name</th><th>Email</th><th /></tr></thead>
+      <tbody>
+        {users.map((u) => (
+          <tr key={u.id}>
+            <td>{u.name}</td>
+            <td>{u.email}</td>
+            <td><button onClick={() => deleteUser(u.id)}>Delete</button></td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+```
+
+## Related
+
+- <Link href="/client-guide">Client Configuration</Link> — setting up the base HTTP client.
+- <Link href="/server-guide">Server Configuration</Link> — SSR queries with `createServerHttp`.
+- <Link href="/api/client-methods">Client Methods Reference</Link> — full `HttpClientInstance` API.

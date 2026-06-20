@@ -1,0 +1,182 @@
+# Client Configuration
+
+import { Callout, Link } from 'vocs'
+
+`createClientHttp()` is the factory for **browser** and **Client Component** code. It wraps [`createHttp()`](/api/create-http) with secure defaults so the most common setup is one line, then lets you override anything.
+
+```ts
+import { createClientHttp } from "rhttp.io/client"; // [!code hl]
+
+const http = createClientHttp({
+  baseURL: "https://api.example.com",
+});
+
+// credentials, JSON headers, CSRF prefetch, and token auto-injection
+// from localStorage are already configured.
+const { data } = await http.get<User>("/me");
+```
+
+## Signature
+
+```ts
+function createClientHttp(config?: CreateHttpConfig): HttpClientInstance;
+```
+
+It accepts the exact same [`CreateHttpConfig`](/api/create-http) shape as the core factory — every option documented there applies here too.
+
+## What it configures for you
+
+`createClientHttp()` builds on `createHttp()` and applies three layered defaults. Your explicit `config` always wins via a shallow merge.
+
+### 1. Smart `defaultFetchOptions` merge
+
+Rather than replacing your fetch options, the factory **merges** them over browser-secure defaults. This means you can pass `defaultFetchOptions` without losing `credentials` or your `Content-Type`.
+
+```ts
+// Internally, createClientHttp builds:
+const clientDefaults = {
+  credentials: "include" as const,
+  headers: { "Content-Type": "application/json" },
+};
+
+const mergedFetchOptions = {
+  ...clientDefaults,
+  ...config.defaultFetchOptions,
+  headers: {
+    ...clientDefaults.headers,
+    ...(config.defaultFetchOptions?.headers || {}),
+  }, // [!code hl]
+};
+```
+
+The effective precedence is therefore:
+
+```
+config.defaultFetchOptions.headers   (highest)
+config.defaultFetchOptions.*         (credentials, mode, …)
+clientDefaults.headers               ("Content-Type": "application/json")
+clientDefaults.credentials           ("include")
+```
+
+<Callout type="note" emoji="🧩">
+`defaultFetchOptions` is a **property of `CreateHttpConfig`** (type `RequestInit`), not an exported function. It feeds native `fetch()` options globally — things like `credentials`, `mode`, `referrerPolicy`. There is no `import { defaultFetchOptions }` symbol anywhere in the package.
+</Callout>
+
+### 2. CSRF, on and prefetched
+
+CSRF protection is **enabled by default** for the browser, with a sensible endpoint and a warm-up fetch at construction time.
+
+```ts
+// Internally:
+createHttp({
+  // …your config…
+  csrf: {
+    enabled: true,
+    cookieName: "csrf-token",
+    headerName: "X-CSRF-Token",
+    fetchEndpoint: "/api/csrf",
+    prefetch: true, // [!code hl]
+    ...config.csrf, // your overrides win
+  },
+});
+```
+
+The token is fetched once from `GET /api/csrf` (cached and shared), read from the `csrf-token` cookie when present, and injected as `X-CSRF-Token` on `POST`, `PUT`, `PATCH`, and `DELETE`. See [CSRF Protection](/advanced-guide#csrf-protection) for per-request control and endpoint expectations.
+
+### 3. Token auto-injection
+
+A default `getToken` reads the access token from `localStorage` on every request, so you don't have to wire an interceptor just to attach a bearer.
+
+```ts
+const defaultGetToken = () => {
+  if (typeof window !== "undefined") {
+    return localStorage.getItem("access_token"); // [!code hl]
+  }
+  return null;
+};
+
+createHttp({
+  // …your config…
+  auth: {
+    scheme: "Bearer",
+    getToken: config.auth?.getToken || defaultGetToken, // [!code hl]
+    ...config.auth,
+  },
+});
+```
+
+The resolved token is sent as `Authorization: Bearer <token>` (lowercased to `authorization` on the wire). Set or update it with `localStorage.setItem("access_token", newToken)`.
+
+<Callout type="tip" emoji="🔐">
+For short-lived tokens with a refresh endpoint, pair this with [`createRefreshAuthInterceptor()`](/advanced-guide#authentication) — it queues concurrent 401s and replays them once after refreshing.
+</Callout>
+
+## Putting it together: a production client
+
+```ts
+import { createClientHttp } from "rhttp.io/client";
+import { createRefreshAuthInterceptor } from "rhttp.io";
+
+export const http = createClientHttp({
+  baseURL: import.meta.env.VITE_API_URL,
+  timeout: 15_000,
+
+  // Resilience
+  retry: { attempts: 3, strategy: "exponential", delay: 300, maxDelay: 5_000 },
+  circuitBreaker: { enabled: true, failureThreshold: 5, successThreshold: 2, timeout: 30_000 },
+  requestPool: { enabled: true, maxConcurrent: 5 },
+
+  // Read-heavy endpoints benefit from SWR; mutations are not cached.
+  cache: { enabled: true, ttl: 60_000, strategy: "stale-while-revalidate" },
+
+  // Observability in development only.
+  observability: { logger: import.meta.env.DEV, metrics: import.meta.env.DEV, tracing: true },
+
+  // Merge custom fetch options without losing the secure defaults.
+  defaultFetchOptions: { mode: "cors" },
+});
+
+// Refresh expired access tokens transparently.
+http.interceptors.response.use(
+  (response) => response,
+  createRefreshAuthInterceptor(http, {
+    refreshToken: async () => {
+      const res = await fetch("/api/auth/refresh", { method: "POST", credentials: "include" });
+      if (!res.ok) return null;
+      const { token } = (await res.json()) as { token: string };
+      return token;
+    },
+    onTokenRefreshed: (token) => localStorage.setItem("access_token", token),
+  }),
+);
+```
+
+## Overriding the defaults
+
+Every default is overridable. Common tweaks:
+
+```ts
+const http = createClientHttp({
+  baseURL: "https://api.example.com",
+
+  // Use a different localStorage key.
+  auth: { getToken: () => localStorage.getItem("jwt") },
+
+  // Point CSRF at a different endpoint, or disable it entirely.
+  csrf: { enabled: false },
+  // csrf: { fetchEndpoint: "/csrf-token", headerName: "X-XSRF-TOKEN" },
+
+  // Turn off the JSON Content-Type for FormData uploads.
+  defaultFetchOptions: { headers: {} },
+});
+```
+
+<Callout type="warning" emoji="🚫">
+Disabling CSRF (`csrf: { enabled: false }`) removes protection on state-changing requests. Only do it if your backend is genuinely stateless/origin-protected, or you handle CSRF another way.
+</Callout>
+
+## Related
+
+- <Link href="/server-guide">Server Configuration</Link> — the SSR counterpart, with cookie forwarding.
+- <Link href="/advanced-guide">Advanced Features</Link> — caching, auth, CSRF, retry, rate limiting, profiling.
+- <Link href="/api/create-http">API Reference: <code>createHttp()</code></Link> — the full option surface.

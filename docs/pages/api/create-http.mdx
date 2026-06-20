@@ -1,0 +1,86 @@
+# `createHttp()`
+
+import { Callout } from 'vocs'
+
+The framework-agnostic factory that creates a fully featured HTTP client.
+
+```ts
+import { createHttp } from "rhttp.io"; // [!code hl]
+
+const http = createHttp(config?);
+// → HttpClientInstance
+```
+
+## Signature
+
+```ts
+function createHttp(config?: CreateHttpConfig): HttpClientInstance;
+```
+
+## `CreateHttpConfig`
+
+| Option                | Type                                   | Default             | Description                                                    |
+| --------------------- | -------------------------------------- | -------------------- | -------------------------------------------------------------- |
+| `baseURL`             | `string`                               | —                    | Base URL prepended to all request URLs.                        |
+| `defaultHeaders`      | `Record<string, string>`               | `{}`                 | Headers sent with every request (medium priority).              |
+| `defaultFetchOptions` | `RequestInit`                          | `{}`                 | Native `fetch()` options (lowest priority for headers).         |
+| `timeout`             | `number`                               | `30_000` (30 s)      | Global timeout in milliseconds.                                |
+| `retry`               | `Partial<RetryConfig>`                 | `{attempts:0}`       | Retry configuration.                                            |
+| `cache`               | `Partial<CacheConfig>`                 | `{enabled:false}`    | In-memory cache configuration.                                  |
+| `csrf`                | `Partial<CsrfConfig>`                  | `{enabled:false}`    | CSRF protection configuration.                                  |
+| `observability`        | `Partial<ObservabilityConfig>`         | `{logger:false}`     | Logging, tracing, and metrics.                                  |
+| `auth`                | `Partial<AuthConfig>`                  | —                    | Authentication configuration.                                  |
+| `requestContext`      | `() => any`                            | —                    | Returns the current request (SSR, TanStack Start).              |
+| `fetch`               | `typeof globalThis.fetch`              | `globalThis.fetch`   | Custom fetch implementation.                                    |
+| `circuitBreaker`      | `Partial<CircuitBreakerConfig>`        | `{enabled:true}`     | Circuit breaker configuration.                                 |
+| `requestPool`         | `Partial<RequestPoolConfig>`           | `{enabled:false}`    | Request concurrency limiter.                                    |
+| `etag`                | `Partial<ETagConfig>`                  | `{enabled:true}`     | ETag / conditional request support.                             |
+| `hooks`               | `RequestHooks`                         | —                    | Global lifecycle hooks.                                         |
+| `plugins`             | `PluginConfig[]`                       | `[]`                 | Plugin instances registered at construction.                    |
+| `requestValidator`    | `RequestValidator`                     | —                    | Global request validator — throw to reject.                    |
+| `responseTransformer` | `ResponseTransformer`                  | —                    | Global response transformer — mutates `data` before returning. |
+
+## Header merging priority
+
+When a request is sent, headers are merged in three layers with increasing priority:
+
+```
+1. config.defaultFetchOptions.headers   (lowest)
+2. config.defaultHeaders
+3. options.headers                      (per-request, highest)
+```
+
+All keys are normalized to lowercase before merging. A later layer replaces an earlier one with the same key.
+
+## Cookie forwarding (`auth.forwardCookies`)
+
+When `auth.forwardCookies` is `true` and a request context is available (via `requestContext()` or the `async_hooks` store), the `Cookie` header from the incoming request is copied to every outbound request.
+
+```ts
+const http = createHttp({
+  auth: { forwardCookies: true },
+});
+```
+
+## Request context resolution
+
+The engine resolves the active request through:
+
+1. `requestContextStore.getStore()` — an `async_hooks` store set via `setRequestContextStore()`.
+2. `config.requestContext()` — a user-provided function.
+3. Falls back to no context if both are unavailable.
+
+## Environment-specific factories
+
+For most use cases, prefer the environment-specific wrappers which pre-configure sensible defaults:
+
+| Factory             | Entry point              | Key defaults                                           |
+| ------------------- | ----------------------- | ------------------------------------------------------ |
+| `createHttp()`      | `rhttp.io`              | No defaults — full control.                            |
+| `createClientHttp()`| `rhttp.io/client`       | `credentials:"include"`, JSON headers, CSRF on, token from localStorage. |
+| `createServerHttp()`| `rhttp.io/server`       | `forwardCookies:true`, logger+tracing on, prod metrics. |
+
+## Related
+
+- <Link href="/api/client-methods">Client Methods</Link> — `HttpClientInstance` methods.
+- <Link href="/api/types">Types</Link> — all config interfaces in detail.

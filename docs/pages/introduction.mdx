@@ -1,0 +1,67 @@
+# Introduction
+
+import { Callout, Link } from 'vocs'
+
+**rhttp.io** is an isomorphic, TypeScript-native HTTP client designed for modern full-stack applications. It runs unchanged in the browser, in Node.js, and on edge runtimes, and ships with the building blocks most teams end up writing by hand: caching, retries, a circuit breaker, CSRF protection, JWT refresh, request pooling, observability, and a realtime Socket.io layer.
+
+## Philosophy
+
+- **Zero-boilerplate defaults.** `createClientHttp()` and `createServerHttp()` come preconfigured for their environment so the common case is one line of config.
+- **Composable, not magic.** Every feature is an opt-in toggle on a single config object, and every toggle can be overridden per request.
+- **Types all the way down.** Responses are generic, options are strictly typed, and the entire public type surface is exported.
+- **Isomorphic.** The same client code runs on the client and the server, with cookie forwarding bridging the SSR gap.
+
+## Architecture: five entry points
+
+rhttp.io is published as a single npm package with five entry points. Import from the one that matches where the code runs.
+
+| Entry point                  | Import                                | Use it when                                                                  |
+| ---------------------------- | ------------------------------------- | ---------------------------------------------------------------------------- |
+| **Core**                     | `rhttp.io`                            | Framework-agnostic HTTP client, plus all advanced classes (`CircuitBreaker`, `RateLimiter`, …). |
+| **Client**                   | `rhttp.io/client`                     | Browser / Client Components. Adds credentials, JSON headers, CSRF prefetch, token auto-injection. |
+| **Server**                   | `rhttp.io/server`                     | Node / SSR. Adds cookie forwarding, tracing, metrics, TanStack Start detection. |
+| **React adapter**            | `rhttp.io/react`                      | `withReact(http)` produces TanStack Query-compatible `queryKey`/`queryFn`/`mutationFn`. |
+| **Realtime**                 | `rhttp.io/socket.io.client`           | Socket.io client with rooms, offline queue, event validation, React hooks.   |
+
+<Callout type="tip" emoji="🧭">
+The Client and Server entry points re-export everything from Core. If you import `createClientHttp`, you also get `HttpError`, `CircuitBreaker`, all types, and every utility — no need to mix two imports.
+</Callout>
+
+## Feature overview
+
+| Capability              | Core | Client | Server | Realtime |
+| ----------------------- | :--: | :----: | :----: | :------: |
+| Typed request methods   |  ✅  |   ✅   |   ✅   |    —     |
+| Interceptors (req/res)  |  ✅  |   ✅   |   ✅   |    —     |
+| 5 cache strategies      |  ✅  |   ✅   |   ✅   |    —     |
+| ETag negotiation        |  ✅  |   ✅   |   ✅   |    —     |
+| Retry (linear/exp)      |  ✅  |   ✅   |   ✅   |    —     |
+| Circuit breaker         |  ✅  |   ✅   |   ✅   |    —     |
+| Request pooling         |  ✅  |   ✅   |   ✅   |    —     |
+| Request deduplication   |  ✅  |   ✅   |   ✅   |    —     |
+| Rate limiting           |  ✅  |   ✅   |   ✅   |    —     |
+| JWT refresh interceptor |  ✅  |   ✅   |   ✅   |    —     |
+| CSRF protection         | opt  |  auto  |  opt   |   opt    |
+| Cookie forwarding (SSR) |  —   |   —    |  auto  |    —     |
+| Observability           | opt  |  opt   |  auto  |   opt    |
+| Realtime / Socket.io    |  —   |   —    |   —    |    ✅    |
+
+`auto` = enabled by the factory, `opt` = available but opt-in.
+
+## Which factory should I use?
+
+<Callout type="note" emoji="🤔">
+Decision rule:
+
+- **In a browser / Client Component?** → `createClientHttp()` from `rhttp.io/client`.
+- **In a server function / route handler / getServerSideProps?** → `createServerHttp()` from `rhttp.io/server`.
+- **In a shared SDK, a CLI, a script, or an environment you fully control?** → `createHttp()` from `rhttp.io` and configure everything explicitly.
+</Callout>
+
+## Next steps
+
+- <Link href="/getting-started">Installation &amp; your first request</Link>
+- <Link href="/client-guide">Client Configuration</Link>
+- <Link href="/server-guide">Server Configuration (SSR)</Link>
+- <Link href="/advanced-guide">Advanced Features</Link>
+- <Link href="/realtime-guide">Realtime &amp; Socket.io</Link>

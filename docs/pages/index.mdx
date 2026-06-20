@@ -1,0 +1,99 @@
+---
+layout: home
+---
+
+import { Hero, Features, Callout, Steps, Link } from 'vocs'
+
+<Hero
+  heading="rhttp.io"
+  subHeading="The isomorphic HTTP client for TypeScript that gets out of your way."
+  text="Zero-boilerplate config, automatic cookie forwarding, caching, retries, circuit breaker, JWT refresh, CSRF protection, and realtime Socket.io — batteries included, fully typed."
+  actions={[
+    {
+      text: 'Get Started',
+      link: '/getting-started',
+      target: '_self',
+    },
+    {
+      text: 'GitHub',
+      link: 'https://github.com/elprof45/rhttp.io',
+    },
+  ]}
+/>
+
+## Why rhttp.io?
+
+<Features
+  columns={[
+    {
+      title: 'Zero-boilerplate',
+      icon: '⚡',
+      text: 'Secure, production-ready defaults via `createClientHttp()` and `createServerHttp()`. Credentials, JSON headers, CSRF, and observability are wired in for you.',
+    },
+    {
+      title: 'Automatic cookie forwarding',
+      icon: '🍪',
+      text: 'Server-side requests transparently forward the incoming request cookies — with TanStack Start auto-detection and an `async_hooks` store for custom frameworks.',
+    },
+    {
+      title: 'Native TypeScript',
+      icon: '🟦',
+      text: 'Strict types end to end. Typed responses, generics on every method, and a fully exported type surface so your editor always knows the shape of your data.',
+    },
+    {
+      title: '5 caching strategies',
+      icon: '🗄️',
+      text: '`cache-first`, `network-first`, `cache-only`, `network-only`, and `stale-while-revalidate` — plus ETag negotiation and per-request overrides.',
+    },
+    {
+      title: 'Resilient by default',
+      icon: '🛡️',
+      text: 'Configurable retries with linear/exponential backoff, a circuit breaker, request pooling, deduplication, and a token-bucket rate limiter.',
+    },
+    {
+      title: 'Realtime built-in',
+      icon: '🔌',
+      text: 'A Socket.io client with rooms, offline queue, event validation, React hooks, and CSRF-aware connections — all under `rhttp.io/socket.io.client`.',
+    },
+  ]}
+/>
+
+## Get going in seconds
+
+<Callout type="note" emoji="📦">
+  Install once, import from the entry point that matches your environment.
+
+  ```bash
+  npm i rhttp.io
+  ```
+</Callout>
+
+```ts
+import { createHttp } from "rhttp.io"; // [!code hl]
+
+// Core client works everywhere — browser, Node, Edge.
+const http = createHttp({
+  baseURL: "https://api.example.com",
+  defaultHeaders: { "Content-Type": "application/json" }, // [!code hl]
+});
+
+const { data } = await http.get<User>("/users/42");
+```
+
+<Steps>
+
+### Pick the right factory
+
+- **`createHttp()`** — framework-agnostic core. Use it when you want full control.
+- **`createClientHttp()`** — browser/Client Components. Adds `credentials: "include"`, JSON headers, CSRF prefetch, and token auto-injection from `localStorage`.
+- **`createServerHttp()`** — Node/SSR. Enables cookie forwarding, tracing, and metrics out of the box.
+
+### Choose your features
+
+Toggle caching, retries, circuit breaker, and observability via a single config object — or override any of them per request.
+
+</Steps>
+
+## Explore the docs
+
+<Link href="/introduction">Start with the Introduction →</Link>
