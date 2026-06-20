@@ -35,6 +35,8 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 #output
 dist
-dossier-test
-dossier-test/*
 *.io
+
+# Local Netlify folder
+.netlify
+
