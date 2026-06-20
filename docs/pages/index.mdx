@@ -1,0 +1,74 @@
+---
+layout: landing
+---
+
+import { HomePage } from 'vocs/components'
+
+<HomePage>
+  <HomePage.Root>
+    <HomePage.Logo />
+    <HomePage.Tagline>Universal HTTP Client</HomePage.Tagline>
+    <HomePage.Description>
+      Caching · Retries · Circuit Breaker · JWT · CSRF · Socket.io  
+      Isomorphic for browsers, Node.js, and Edge Runtimes.
+    </HomePage.Description>
+    <HomePage.Buttons>
+      <HomePage.Button href="/introduction/getting-started" variant="accent">
+        Get Started
+      </HomePage.Button>
+      <HomePage.Button href="https://github.com/elprof45/rhttp.io">
+        GitHub
+      </HomePage.Button>
+    </HomePage.Buttons>
+  </HomePage.Root>
+
+  <HomePage.Sections>
+    <HomePage.Section>
+      <HomePage.SectionIcon icon="⚡" />
+      <HomePage.SectionTitle>Performance First</HomePage.SectionTitle>
+      <HomePage.SectionDescription>
+        5 intelligent cache strategies, automatic request deduplication, exponential backoff retries, and request pooling to keep your app fast.
+      </HomePage.SectionDescription>
+    </HomePage.Section>
+
+    <HomePage.Section>
+      <HomePage.SectionIcon icon="🔒" />
+      <HomePage.SectionTitle>Security Built-in</HomePage.SectionTitle>
+      <HomePage.SectionDescription>
+        CSRF protection, JWT/OAuth support, automatic token refresh, cookie forwarding for SSR — secure by default.
+      </HomePage.SectionDescription>
+    </HomePage.Section>
+
+    <HomePage.Section>
+      <HomePage.SectionIcon icon="🌍" />
+      <HomePage.SectionTitle>Fully Isomorphic</HomePage.SectionTitle>
+      <HomePage.SectionDescription>
+        Works seamlessly in browsers, Node.js 18+, and Edge Runtimes (Vercel, Cloudflare Workers).
+      </HomePage.SectionDescription>
+    </HomePage.Section>
+
+    <HomePage.Section>
+      <HomePage.SectionIcon icon="🎯" />
+      <HomePage.SectionTitle>Type-Safe</HomePage.SectionTitle>
+      <HomePage.SectionDescription>
+        Complete TypeScript support with full type inference on request bodies, response data, and error types.
+      </HomePage.SectionDescription>
+    </HomePage.Section>
+
+    <HomePage.Section>
+      <HomePage.SectionIcon icon="🔌" />
+      <HomePage.SectionTitle>Realtime Ready</HomePage.SectionTitle>
+      <HomePage.SectionDescription>
+        Socket.io client with logging, event validation/transformation, offline queue, and lifecycle hooks.
+      </HomePage.SectionDescription>
+    </HomePage.Section>
+
+    <HomePage.Section>
+      <HomePage.SectionIcon icon="📦" />
+      <HomePage.SectionTitle>React Integration</HomePage.SectionTitle>
+      <HomePage.SectionDescription>
+        Seamless TanStack Query builders — generate `queryKey`, `queryFn`, and `mutationFn` from a single config.
+      </HomePage.SectionDescription>
+    </HomePage.Section>
+  </HomePage.Sections>
+</HomePage>

@@ -1,193 +1,62 @@
-Je veux que tu fasses un **review complet du module `rhttp.io`** afin de **corriger, améliorer, unifier et ajouter des implémentations**, **sans casser le code actuel**.
+Tu es un ingénieur principal et Technical Writer expert. Ton objectif est de concevoir la documentation technique complète, professionnelle et ultra-claire de mon package NPM `rhttp.io` en utilisant le framework Vocs (vocs.dev).
 
-Tu dois **parcourir chaque fichier** dans `./src/**/*` et **revoir chaque implémentation** pour la corriger si nécessaire, la rendre plus cohérente, plus simple, plus robuste et mieux structurée.
+---
 
-Ton objectif est de faire un audit complet du module et de proposer des corrections concrètes, tout en respectant l’existant et en évitant de casser l’API actuelle.
+### ETAPE 1 : ANALYSE DU PROJET (OBLIGATOIRE)
+Avant de rédiger quoi que ce soit, analyse en profondeur l'arborescence et le code existant de mon projet :
+1. Lis attentivement le fichier `README.md` ,`ADVANCED_FEATURES.md` `ADVANCED_FEATURES.md` `COMPLETE_DOCUMENTATION.md et CONFIGURATION_EXAMPLES.md` à la racine pour comprendre la vision globale.
+2. Parcourt et analyse chaque fichier du dossier `./src/**/*` (notamment le core, la partie client et la partie serveur et le realtime,advance ....) pour comprendre l'API exacte, les types TypeScript, les intercepteurs et le comportement de `rhttp.io` `createServerHttp` et `createClientHttp`.
 
-## Objectifs globaux
+---
 
-- Corriger les bugs existants.
-- Améliorer la cohérence générale du module.
-- Unifier les comportements entre le serveur et le client.
-- Ajouter les implémentations manquantes si nécessaire.
-- Simplifier l’usage de l’API.
-- Garder la compatibilité avec le code actuel autant que possible.
-- Revoir chaque fichier de `./src/**/*` un par un.
-- Détecter les incohérences, duplications, mauvaises abstractions et erreurs d’architecture.
-- Proposer une version plus propre, plus maintenable et plus intuitive.
+### ETAPE 2 : GÉNÉRATION DE LA DOCUMENTATION AVEC VOCS
+En te basant exclusivement sur ton analyse réelle du code et du README, génère l'arborescence complète pour Vocs dans le dossier `docs/` (ou à la racine selon la configuration standard de Vocs). 
 
-## Côté Serveur (`rhttp.io/server`)
+Produis le code source complet pour chaque fichier suivant :
 
-Je veux une extraction et un transfert transparents des en-têtes, notamment :
+#### 1. `vocs.config.ts`
+Configure le projet avec le titre `rhttp.io`, une description percutante, et définis une sidebar (`sidebar: [...]`) parfaitement structurée et ordonnée (Introduction, Guide de démarrage, Configuration Client, Configuration Serveur, API Reference).
 
-```typescript
-Cookie: request.headers.get("cookie");
-```
+#### 2. `docs/pages/index.mdx` (Page d'accueil)
+Utilise le layout de type `layout: "landing"` de Vocs. Crée une page d'accueil moderne avec un composant Hero, des badges, des boutons d'action clairs ("Démarrer", "GitHub"), et une section mettant en avant les points forts (Zéro-boilerplate, Forwarding automatique des cookies, TypeScript natif).
 
-depuis le contexte de la requête du framework, par exemple avec `TanStack Start` et `getRequest()`.
+#### 3. `docs/pages/getting-started.md` (Guide de démarrage rapide)
+Montre l'installation (`npm i rhttp.io`) et un exemple de configuration de base du cœur (`./core`) de A à Z avec `defaultFetchOptions`.
 
-Le point d’entrée `src/server.ts` doit être taillé pour les `Server Functions` de TanStack Start.
-Il doit extraire automatiquement les cookies de :
+#### 4. `docs/pages/client-guide.mdx` (Guide Côté Client)
 
-```typescript
-import { getRequest } from "@tanstack/react-start/server";
-```
+#### 5. `docs/pages/server-guide.mdx` (Guide Côté Serveur / TanStack Start)
 
-et les injecter dans les appels vers l’API d’arrière-plan sans aucune action manuelle.
+#### 6. `docs/pages/advance-guide.mdx` (Guide avancer)
 
-Exemple de comportement attendu :
+#### 7. `docs/pages/realtime-guide.mdx` (Guide realtime)
 
-```typescript
-// Obligatoire dans TanStack Start
-import { getRequest } from "@tanstack/react-start/server";
-// Cookies from getRequest are automatically forwarded
-export function createServerHttp(
-  config: CreateHttpConfig = {},
-): HttpClientInstance {
-  const http = createHttp(config);
-  // Injection automatique et transparente du contexte de session (Cookies)
-  http.interceptors.request.use(async (options) => {
-    try {
-      const serverRequest = getRequest();
-      if (serverRequest) {
-        const clientCookies = serverRequest.headers.get("cookie") || "";
-        options.headers = {
-          ...options.headers,
-          Cookie: clientCookies,
-        };
-      }
-    } catch {
-      // Ignoré silencieusement si exécuté en dehors d'une requête HTTP (ex: build time)
-    }
-    return options;
-  });
+# Configuration Examples for rhttp.io
 
-  return createHttp;
-}
-```
+1. [Installation](#installation)
+2. [Quick Start](#quick-start)
+3. [Core Concepts](#core-concepts)
+4. [API Reference](#api-reference)
+5. [Advanced Features](#advanced-features)
+6. [Error Handling](#error-handling)
+7. [Interceptors](#interceptors)
+8. [Caching Strategies](#caching-strategies)
+9. [Authentication](#authentication)
+10. [CSRF Protection](#csrf-protection)
+11. [Retry Logic](#retry-logic)
+12. [Rate Limiting](#rate-limiting)
+13. [Request Profiling](#request-profiling)
+14. [React Integration](#react-integration)
+15. [Socket.io Realtime](#socketio-realtime)
+16. [Examples](#examples)
+17. [Troubleshooting](#troubleshooting)
+---
 
-## Côté Client (`rhttp.io/client`)
+### DIRECTIVES TECHNIQUES DE RÉDACTION VOCS
+- **Surlignage de code avancé** : Utilise les annotations Shiki natives de Vocs dans tes blocs de code TypeScript pour mettre en évidence les lignes critiques (ex: `// [!code hl]` ou `// [!code ++]`).
+- **Composants d'alerte** : Utilise les blocs de contenu Vocs comme `:::note`, `:::warning` ou `:::tip` pour guider visuellement le développeur.
+- **Code Prêt pour la Production** : Tout le code fourni doit être en TypeScript strict, complet (pas de `// ... reste du code`), et correspondre exactement à ce que tu as trouvé dans mes fichiers sources.
 
-Je veux une injection automatique de :
-
-```typescript
-credentials: "include";
-```
-
-ou une gestion dynamique du header :
-
-```typescript
-Authorization: Bearer<token>;
-```
-
-Le point d’entrée `src/client.ts` doit être taillé pour les `Client Components`.
-Il doit configurer l’instance pour inclure automatiquement les cookies et gérer dynamiquement l’en-tête `Authorization` en utilisant un `Access Token` stocké dans le `localStorage`.
-
-Exemple attendu :
-
-```typescript
-export function createClientHttp(
-  config: CreateHttpConfig = {},
-): HttpClientInstance {
-  // On force le comportement sécurisé des cookies sur le client par défaut
-  const clientConfig: CreateHttpConfig = {
-    ...config,
-    defaultFetchOptions: {
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      ...config.defaultFetchOptions,
-    },
-  };
-
-  const http = createHttp(clientConfig);
-
-  // Intercepteur pour gérer dynamiquement un Access Token stocké dans le localStorage
-  http.interceptors.request.use((options) => {
-    if (typeof window !== "undefined") {
-      const token = localStorage.getItem("access_token");
-      if (token) {
-        options.headers = {
-          ...options.headers,
-          Authorization: `Bearer ${token}`,
-        };
-      }
-    }
-    return options;
-  });
-  return createHttp;
-}
-```
-
-Et je veux aussi pouvoir définir ceci dans le module `./core` :
-
-```typescript
-export const http = createHttp({
-  // a ajouter dans au module (./core)
-  defaultFetchOptions: {
-    credentials: "include",
-  },
-});
-```
-
-## Simplification attendue côté serveur
-
-Actuellement, je veux remplacer cette approche :
-
-```typescript
-import { createServerHttp } from "rhttp.io/server";
-const http = createServerHttp({
-  auth: {
-    forwardCookies: true, // Forward incoming request cookies
-  },
-});
-
-// In TanStack Start
-export const fetchProtectedData = createServerFn({ method: "GET" }).handler(
-  async ({ request }) => {
-    // Cookies from request are automatically forwarded
-    return http.withRequest(request, async () => {
-      return http.get<Todo[]>("/protected-data");
-    });
-  },
-);
-```
-
-par une version plus simple, plus directe et plus élégante :
-
-```typescript
-import { createServerHttp } from "rhttp.io/server";
-const http = createServerHttp({
-  auth: {
-    forwardCookies: true, // Forward incoming request cookies
-  },
-});
-
-// In TanStack Start Cookies are automatically forwarded
-export const fetchProtectedData = createServerFn({ method: "GET" }).handler(
-  async () => {
-    const { data: todos } = await http.get<Todo[]>("/protected-data");
-    return todos;
-  },
-);
-```
-
-## Ce que tu dois faire
-
-- Lire tout le module `rhttp.io`.
-- Analyser tous les fichiers dans `./src/**/*`.
-- Corriger les implémentations incorrectes.
-- Unifier les patterns entre client, serveur et core.
-- Ajouter les implémentations manquantes.
-- Simplifier l’expérience développeur.
-- Éviter de casser les usages existants.
-- Proposer des améliorations concrètes, propres et cohérentes.
-- Si une API actuelle est trop compliquée, la rendre plus simple tout en gardant la compatibilité.
-
-## Contraintes importantes
-
-- Ne casse pas les codes actuels.
-- Préserve l’existant autant que possible.
-- Corrige les erreurs au lieu de les contourner.
-- Harmonise les comportements.
-- Garde une API claire, simple et intuitive.
-- Mets à jour les implémentations pour que le comportement côté client et côté serveur soit cohérent.
+Génère les fichiers un par un avec leur chemin exact.
+ pour utiliser vocs
+ Read https://vocs.dev/introduction/getting-started and set up Vocs for my project.
