@@ -35,8 +35,12 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 #output
 dist
-*.io
 
 # Local Netlify folder
 .netlify
+rhttp.io-doc/.netlify
+rhttp.io-doc/dist
+rhttp.io-doc/node_modules
+rhttp.io-doc/.DS_Store
 
+dossier-test

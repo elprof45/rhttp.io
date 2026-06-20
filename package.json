@@ -36,7 +36,7 @@
   "bugs": {
     "url": "https://github.com/elprof45/rhttp.io/issues"
   },
-  "homepage": "https://github.com/elprof45/rhttp.io#readme",
+  "homepage": "https://rhttpio.netlify.app",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
