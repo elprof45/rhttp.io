@@ -103,10 +103,7 @@
     "dev": "tsup --watch",
     "test": "bun test",
     "lint": "tsc --noEmit",
-    "prepublishOnly": "bun run build && bun run test",
-    "docs:dev": "vocs dev",
-    "docs:build": "vocs build",
-    "docs:preview": "vocs preview"
+    "prepublishOnly": "bun run build && bun run test"
   },
   "devDependencies": {
     "@tanstack/react-query": "^5.45.0",
@@ -115,8 +112,7 @@
     "react": "^18.3.1",
     "socket.io-client": "^4.8.3",
     "tsup": "^8.1.0",
-    "typescript": "^5.4.5",
-    "vocs": "^2.0.15"
+    "typescript": "^5.4.5"
   },
   "peerDependencies": {
     "@tanstack/react-query": "^5.0.0",
@@ -137,9 +133,5 @@
     "socket.io-client": {
       "optional": true
     }
-  },
-  "dependencies": {
-    "vite": "^8.0.16",
-    "waku": "^1.0.0-beta.3"
   }
 }
