@@ -1,26 +1,32 @@
-# rhttp.io - Complete Documentation
+# rhttp.io — Complete Documentation
 
-Universal HTTP client. Caching, retries, circuit breaker, JWT, CSRF, Socket.io. Isomorphic for browsers, Node.js, Edge.
+Universal HTTP client for modern applications: caching, retries, circuit breaker, JWT, CSRF, Socket.IO, and isomorphic execution across browsers, Node.js, and Edge runtimes.
+
+> This documentation has been rewritten for clarity, consistency, and pedagogy while preserving the original structure and feature set.
+
+---
 
 ## Demo
 
-Insert gif or link to demo
+Insert a demo GIF or a live demo link here.
 
 ![Logo](https://dev-to-uploads.s3.amazonaws.com/uploads/articles/th5xamgrr6se0x5ro4g6.png)
 
+---
+
 ## ✨ Features
 
-- **🌍 Fully Isomorphic** — Works in browsers, Node.js, and Edge Runtimes (Vercel, Cloudflare)
-- **🔒 Security** — Built-in CSRF protection, JWT/OAuth support, automatic token refresh, secure cookie handling
-- **⚡ Performance** — Intelligent caching (5 strategies), automatic request deduplication, smart retry logic
-- **🎯 Type-Safe** — Complete TypeScript support with full type inference
-- **🔄 Retry & Timeout** — Exponential backoff, configurable status codes, request timeouts
-- **📊 Observability** — Built-in logging, request tracing, and metrics collection
-- **🪝 Interceptors** — Request and response interceptors for cross-cutting concerns
-- **✅ Validation** — Request validation, response schema validation, and data transformers
-- **⚙️ SSR-Ready** — Cookie forwarding, request context binding for TanStack Start/Next.js
-- **📦 React Integration** — Seamless TanStack Query builders
-- **🔌 Realtime** — Socket.io client with logging, event validation/transformation, lifecycle hooks, offline queue
+- **🌍 Fully Isomorphic** — Works in browsers, Node.js, and Edge runtimes such as Vercel and Cloudflare.
+- **🔒 Security** — Built-in CSRF protection, JWT/OAuth support, automatic token refresh, and secure cookie handling.
+- **⚡ Performance** — Intelligent caching, automatic request deduplication, and configurable retry logic.
+- **🎯 Type-Safe** — Full TypeScript support with strong type inference.
+- **🔄 Retry & Timeout** — Exponential backoff, configurable retry status codes, and request timeouts.
+- **📊 Observability** — Built-in logging, request tracing, metrics collection, and history tracking.
+- **🪝 Interceptors** — Request and response interceptors for cross-cutting concerns.
+- **✅ Validation** — Request validation, response validation, and data transformers.
+- **⚙️ SSR-Ready** — Cookie forwarding and request context binding for TanStack Start and similar frameworks.
+- **📦 React Integration** — Seamless builders for TanStack Query and React applications.
+- **🔌 Realtime** — Socket.IO client with logging, validation, transformations, lifecycle hooks, room handling, and offline queue support.
 
 ---
 
@@ -39,14 +45,23 @@ Insert gif or link to demo
 11. [Retry Logic](#retry-logic)
 12. [Rate Limiting](#rate-limiting)
 13. [Request Profiling](#request-profiling)
-14. [React Integration](#react-integration)
-15. [Socket.io Realtime](#socketio-realtime)
-16. [Examples](#examples)
-17. [Troubleshooting](#troubleshooting)
+14. [Monitoring & Observability](#monitoring--observability)
+15. [React Integration](#react-integration)
+16. [Socket.IO Realtime](#socketio-realtime)
+17. [Extensions](#extensions)
+18. [Examples](#examples)
+19. [Troubleshooting](#troubleshooting)
+20. [Best Practices](#best-practices)
+21. [Migration Guide](#migration-guide)
+22. [License](#license)
+23. [Contributing](#contributing)
+24. [Support](#support)
 
 ---
 
 ## Installation
+
+Install the package with your preferred package manager:
 
 ```bash
 npm install rhttp.io
@@ -58,20 +73,22 @@ yarn add rhttp.io
 
 ### Entry Points
 
+Use the entry point that matches your runtime or integration layer:
+
 ```typescript
-// Core isomorphic client (universal, browsers + Node.js + Edge)
+// Core isomorphic client: browsers + Node.js + Edge
 import { createHttp } from "rhttp.io";
 
-// Browser-optimized client (CSRF prefetch,etc)
+// Browser-optimized client: CSRF prefetch, browser-oriented behavior
 import { createClientHttp } from "rhttp.io/client";
 
-// Server-optimized client (cookie forwarding, structured logging)
+// Server-optimized client: cookie forwarding, structured logging
 import { createServerHttp } from "rhttp.io/server";
 
 // React + TanStack Query integration
 import { withReact } from "rhttp.io/react";
 
-// Realtime Socket.io client
+// Realtime Socket.IO client
 import { createRealtimeClient } from "rhttp.io/socket.io.client";
 
 // Error classes
@@ -80,7 +97,7 @@ import { HttpError, TimeoutError, NetworkError } from "rhttp.io";
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Basic Usage
 
@@ -91,12 +108,12 @@ const http = createHttp({
   baseURL: "https://api.example.com",
   timeout: 30_000,
 });
-// GET request
+
 const { data: posts } = await http.get<Post[]>("/posts");
 console.log(posts);
 ```
 
-### POST with Validation
+### POST with Typed Input and Output
 
 ```typescript
 interface CreatePostInput {
@@ -108,7 +125,7 @@ interface CreatePostResponse {
   id: string;
   createdAt: string;
 }
-// POST request
+
 const { data: newPost } = await http.post<CreatePostInput, CreatePostResponse>(
   "/posts",
   { title: "Hello", content: "World" },
@@ -118,7 +135,6 @@ const { data: newPost } = await http.post<CreatePostInput, CreatePostResponse>(
 ### Error Handling
 
 ```typescript
-// Error handling
 try {
   await http.get("/not-found");
 } catch (error) {
@@ -139,79 +155,70 @@ try {
 
 ### HttpResponse
 
-Every successful request returns an `HttpResponse` object:
+Every successful request returns an `HttpResponse<T>` object:
 
 ```typescript
 interface HttpResponse<T> {
-  data: T; // Parsed response body
-  status: number; // HTTP status code
-  statusText: string; // HTTP status text (e.g., "OK")
-  headers: Record<string, string>; // Response headers
-  response: Response; // Native fetch Response object
-  requestId: string; // Unique request identifier
-  durationMs: number; // Request duration in milliseconds
+  data: T;                   // Parsed response body
+  status: number;            // HTTP status code
+  statusText: string;        // HTTP status text
+  headers: Record<string, string>; // Normalized response headers
+  response: Response;        // Native fetch Response object
+  requestId: string;         // Unique request identifier
+  durationMs: number;        // Duration in milliseconds
 }
 ```
 
-### Creating an HTTP Client `createHttp(config)`
+### Creating an HTTP Client
 
-Factory function that creates an HTTP client instance.
+`createHttp(config)` builds a reusable client instance.
 
 ```typescript
 const http = createHttp({
-  // Base URL for all requests
   baseURL: "https://api.example.com",
-  // Global timeout (milliseconds)
   timeout: 30_000,
-  // Default headers for all requests
   defaultHeaders: {
     Accept: "application/json",
     "User-Agent": "MyApp/1.0",
   },
 
-  // Cache configuration
   cache: {
     enabled: true,
-    ttl: 60_000, // 1 minute TTL
-    keyBuilder: (url, opts) => `${url}:${JSON.stringify(opts.params)}`,
+    ttl: 60_000,
+    keyBuilder: (url, options) => `${url}:${JSON.stringify(options.params ?? {})}`,
   },
 
-  // Retry configuration
   retry: {
-    attempts: 3, // Number of retry attempts
-    strategy: "exponential", // "exponential" | "linear" | "none"
-    delay: 300, // Initial delay (ms)
-    maxDelay: 30_000, // Maximum delay between retries
-    statusCodes: [408, 429, 500, 502, 503, 504], // Retryable status codes
+    attempts: 3,
+    strategy: "exponential",
+    delay: 300,
+    maxDelay: 30_000,
+    statusCodes: [408, 429, 500, 502, 503, 504],
     shouldRetry: async (error, attempt) => attempt <= 3,
   },
 
-  // Authentication
   auth: {
-    forwardCookies: false, // For SSR
-    accessToken: "your-jwt-token", // Static token
-    scheme: "Bearer", // Auth scheme
-    getToken: async () => "dynamic-token", // Dynamic token
+    forwardCookies: false,
+    accessToken: "your-jwt-token",
+    scheme: "Bearer",
+    getToken: async () => "dynamic-token",
   },
 
-  // CSRF protection (browser)
   csrf: {
     enabled: true,
     fetchEndpoint: "/api/csrf",
     cookieName: "csrf-token",
     headerName: "X-CSRF-Token",
     methods: ["POST", "PUT", "PATCH", "DELETE"],
-    prefetch: true, // Prefetch token on init
+    prefetch: true,
   },
 
-  // Observability
   observability: {
-    logger: true, // true | false | custom logger
-    tracing: true, // Add X-Request-ID header
-    metrics: true, // Collect metrics
+    logger: true,
+    tracing: true,
+    metrics: true,
   },
 
-  // Circuit breaker
   circuitBreaker: {
     enabled: true,
     failureThreshold: 5,
@@ -219,12 +226,11 @@ const http = createHttp({
     timeout: 60_000,
   },
 
-  // Request pooling
   requestPool: {
     enabled: true,
     maxConcurrent: 5,
   },
-  // SSR context (TanStack Start)
+
   requestContext: () => getRequest(),
 });
 ```
@@ -253,8 +259,7 @@ const response = await http.post<T>(
   options?: HttpRequestOptions
 ): Promise<HttpResponse<T>>
 
-// With typed body and response
-const response = await http.post<RequestBody, ResponseType>(
+const typedResponse = await http.post<RequestBody, ResponseType>(
   url: string,
   body: RequestBody,
   options?: HttpRequestOptions
@@ -284,28 +289,25 @@ const response = await http.patch<T>(
 #### DELETE
 
 ```typescript
-// Without body
 const response = await http.delete<T>(
   url: string,
   options?: HttpRequestOptions
 ): Promise<HttpResponse<T>>
 
-// With body
-const response = await http.delete<ResponseType>(
+const responseWithBody = await http.delete<ResponseType>(
   url: string,
   body: any,
   options?: HttpRequestOptions
 ): Promise<HttpResponse<ResponseType>>
 ```
 
-#### CUSTOMFETCH `customFetch(url, options?)`
+#### customFetch
 
-For highly customized requests:
+For fully customized requests:
 
 ```typescript
 const response = await http.customFetch<T>(
   url: string,
-  body?: any,
   options?: HttpRequestOptions
 ): Promise<HttpResponse<T>>
 ```
@@ -314,13 +316,9 @@ const response = await http.customFetch<T>(
 
 ```typescript
 interface HttpRequestOptions {
-  // Query parameters
   params?: Record<string, any>;
-
-  // Request headers
   headers?: Record<string, string>;
 
-  // Cache override
   cache?:
     | boolean
     | {
@@ -328,7 +326,6 @@ interface HttpRequestOptions {
         ttl: number;
       };
 
-  // Retry override
   retry?:
     | boolean
     | {
@@ -339,25 +336,12 @@ interface HttpRequestOptions {
         statusCodes: number[];
       };
 
-  // Timeout override (ms)
   timeout?: number;
-
-  // Prevent concurrent duplicate requests
   deduplicate?: boolean;
-
-  // Disable CSRF for this request
   csrf?: boolean;
-
-  // Custom request ID for tracing
   requestId?: string;
-
-  // Transform response data
   transformer?: (data: any, response: HttpResponse<any>) => any;
-
-  // Validate response before returning
   validateResponse?: (data: any) => boolean;
-
-    // Polling configuration
   polling?: Partial<PollingConfig>;
 }
 ```
@@ -376,58 +360,31 @@ const http = createHttp({
   },
 });
 
-// Get from cache (if fresh)
 const response = await http.get("/items");
-
-// Skip cache for this request
 const freshData = await http.get("/items", { cache: false });
 
-// Invalidate cache for URLs matching pattern
-http.invalidateCache("/items"); // Clears /items, /items/123, etc.
-
-// Clear all cached entries
+http.invalidateCache("/items");
 http.clearCache();
 ```
 
 ### Cache Strategies
 
 ```typescript
-// 1. cache-first: Use cache if available, fallback to network
-const response = await http.get("/items", {
-  cache: { strategy: "cache-first" },
-});
-
-// 2. network-first: Fetch from network, fallback to cache if error
-const response = await http.get("/items", {
-  cache: { strategy: "network-first" },
-});
-
-// 3. stale-while-revalidate: Return stale cache, update in background
-const response = await http.get("/items", {
-  cache: { strategy: "stale-while-revalidate" },
-});
-
-// 4. cache-only: Return cache or error, never fetch
-const response = await http.get("/items", {
-  cache: { strategy: "cache-only" },
-});
-
-// 5. network-only: Never use cache
-const response = await http.get("/items", {
-  cache: { strategy: "network-only" },
-});
+await http.get("/items", { cache: { strategy: "cache-first" } });
+await http.get("/items", { cache: { strategy: "network-first" } });
+await http.get("/items", { cache: { strategy: "stale-while-revalidate" } });
+await http.get("/items", { cache: { strategy: "cache-only" } });
+await http.get("/items", { cache: { strategy: "network-only" } });
 ```
 
 ### Request Deduplication
 
 ```typescript
-// Prevent concurrent duplicate requests
 const [r1, r2, r3] = await Promise.all([
   http.get("/items", { deduplicate: true }),
   http.get("/items", { deduplicate: true }),
   http.get("/items", { deduplicate: true }),
 ]);
-// Only 1 request made, 3 responses received
 ```
 
 ### Batch Requests
@@ -443,24 +400,18 @@ const [posts, users, comments] = await http.batchRequests([
 ### Request Cancellation
 
 ```typescript
-// Get response with requestId
 const response = await http.get("/items");
-const { requestId } = response;
-
-// Cancel specific request
-http.cancel(requestId);
-
-// Cancel all active requests
-http.cancel();
+http.cancel(response.requestId);
+http.cancel(); // cancel all active requests
 ```
 
 ### Polling
 
 ```typescript
-const response = await http.poll("/status", {
+await http.poll("/status", {
   polling: {
-    interval: 5000, // Poll every 5 seconds
-    maxAttempts: 60, // Maximum 60 polls
+    interval: 5000,
+    maxAttempts: 60,
     stopCondition: (result) => result.data.status === "complete",
   },
 });
@@ -470,32 +421,21 @@ const response = await http.poll("/status", {
 
 ```typescript
 const history = http.getHistory();
-// Returns: Array of { requestId, url, method, status, durationMs, timestamp }
 
 history.forEach((entry) => {
-  console.log(
-    `${entry.method} ${entry.url} - ${entry.status} (${entry.durationMs}ms)`,
-  );
+  console.log(`${entry.method} ${entry.url} - ${entry.status} (${entry.durationMs}ms)`);
 });
 ```
 
 ### Metrics Collection
 
 ```typescript
-const http = createHttp({
-  observability: {
-    metrics: true,
-  },
-});
-
-// ... make requests ...
-
 const metrics = http.getMetrics();
 console.log(`Total: ${metrics.totalRequests}`);
 console.log(`Success: ${metrics.successfulRequests}`);
 console.log(`Failed: ${metrics.failedRequests}`);
 console.log(
-  `Avg duration: ${metrics.durations.reduce((a, b) => a + b) / metrics.durations.length}ms`,
+  `Avg duration: ${metrics.durations.reduce((a, b) => a + b, 0) / metrics.durations.length}ms`,
 );
 ```
 
@@ -505,31 +445,29 @@ console.log(
 
 ### HttpError
 
-The main error class for HTTP errors:
-
 ```typescript
 import { HttpError } from "rhttp.io";
+
 try {
   await http.get("/endpoint");
 } catch (error) {
   if (error instanceof HttpError) {
-    console.log(error.status); // 404
-    console.log(error.statusText); // "Not Found"
-    console.log(error.data); // Error response body
-    console.log(error.headers); // Response headers
-    console.log(error.requestId); // Unique request ID
-    console.log(error.durationMs); // Request duration
-    console.log(error.url); // Request URL
+    console.log(error.status);
+    console.log(error.statusText);
+    console.log(error.data);
+    console.log(error.headers);
+    console.log(error.requestId);
+    console.log(error.durationMs);
+    console.log(error.url);
   }
 }
 ```
 
 ### TimeoutError
 
-Thrown when request exceeds timeout:
-
 ```typescript
 import { TimeoutError } from "rhttp.io";
+
 try {
   await http.get("/slow", { timeout: 5000 });
 } catch (error) {
@@ -541,15 +479,14 @@ try {
 
 ### NetworkError
 
-Thrown for network connectivity issues:
-
 ```typescript
 import { NetworkError } from "rhttp.io";
+
 try {
   await http.get("/endpoint");
 } catch (error) {
   if (error instanceof NetworkError) {
-    console.log(error.originalError); // Underlying error
+    console.log(error.originalError);
     console.log(error.message);
   }
 }
@@ -561,9 +498,7 @@ try {
 http.interceptors.response.use(
   (response) => response,
   async (error) => {
-    // Transform error
     if (error instanceof HttpError && error.status === 401) {
-      // Handle unauthorized
       console.log("Session expired, redirecting to login");
     }
     throw error;
@@ -599,27 +534,25 @@ http.interceptors.request.use(
 ```typescript
 http.interceptors.response.use(
   async (response) => {
-    // Success path
     console.log("After response:", response.status);
+
     analytics.track("api_call_success", {
       url: response.response.url,
       status: response.status,
       duration: response.durationMs,
     });
-    // Transform response
+
     if (response.data?.meta) {
-      response.data = response.data.data; // Unwrap
+      response.data = response.data.data;
     }
+
     return response;
   },
   async (error) => {
-    // Error path
     console.error("Response error:", error);
     if (error instanceof HttpError && error.status === 401) {
-      // Handle unauthorized
       window.location.href = "/login";
     }
-    // Handle specific errors
     throw error;
   },
 );
@@ -628,21 +561,15 @@ http.interceptors.response.use(
 ### Ejecting Interceptors
 
 ```typescript
-const handler = http.interceptors.request.use((config) => {
-  return config;
-});
+const handler = http.interceptors.request.use((config) => config);
 
-// Later, remove it
 handler.eject();
-
-// Clear all interceptors
 http.interceptors.request.clear();
 ```
 
 ### Multiple Interceptors
 
 ```typescript
-// Add multiple interceptors - they execute in order
 http.interceptors.request.use(async (config) => {
   config.headers = { ...config.headers, "x-auth": "token" };
   return config;
@@ -652,8 +579,6 @@ http.interceptors.request.use(async (config) => {
   config.headers = { ...config.headers, "x-app": "myapp" };
   return config;
 });
-
-// Both interceptors will execute
 ```
 
 ---
@@ -666,20 +591,16 @@ http.interceptors.request.use(async (config) => {
 const http = createHttp({
   cache: {
     enabled: true,
-    ttl: 60_000, // 1 minute
-    keyBuilder: (url, options) => {
-      // Custom cache key generation
-      return `${url}:${JSON.stringify(options.params)}`;
-    },
+    ttl: 60_000,
+    keyBuilder: (url, options) => `${url}:${JSON.stringify(options.params ?? {})}`,
   },
 });
 
-// Override per-request
 await http.get("/items", {
   cache: {
     enabled: true,
-    ttl: 120_000, // 2 minutes
-    keyBuilder: (url, options) => `custom-${url}`,
+    ttl: 120_000,
+    keyBuilder: (url) => `custom-${url}`,
   },
 });
 ```
@@ -687,16 +608,11 @@ await http.get("/items", {
 ### Cache Invalidation
 
 ```typescript
-// Invalidate specific pattern
 http.invalidateCache("/api/items");
-
-// Clear all cache
 http.clearCache();
 
-// Custom invalidation in interceptor
 http.interceptors.response.use(async (response) => {
   if (response.status === 201 || response.status === 204) {
-    // Invalidate list after create/delete
     http.invalidateCache("/api/items");
   }
   return response;
@@ -713,13 +629,12 @@ http.interceptors.response.use(async (response) => {
 const http = createHttp({
   auth: {
     accessToken: process.env.SERVICE_TOKEN,
-    scheme: "Bearer", // or "Basic", "ApiKey"
+    scheme: "Bearer",
     forwardCookies: false,
   },
 });
 
-// Token is automatically injected
-await http.get("/protected"); // Authorization: Bearer SERVICE_TOKEN
+await http.get("/protected");
 ```
 
 ### Dynamic Token
@@ -727,19 +642,14 @@ await http.get("/protected"); // Authorization: Bearer SERVICE_TOKEN
 ```typescript
 const http = createHttp({
   auth: {
-    getToken: async () => {
-      const token = await localStorage.getItem("auth_token");
-      return token;
-    },
+    getToken: async () => localStorage.getItem("auth_token"),
     scheme: "Bearer",
     forwardCookies: false,
   },
 });
 ```
 
-### Token Refresh Automatic JWT Refresh Interceptor
-
-Automatically refresh expired tokens on `401` responses and retry all queued requests:
+### Automatic JWT Refresh
 
 ```typescript
 import { createHttp, createRefreshAuthInterceptor } from "rhttp.io";
@@ -749,28 +659,20 @@ const http = createHttp({
   auth: { accessToken: localStorage.getItem("access_token") || "" },
 });
 
-// Create refresh interceptor
 const refreshInterceptor = createRefreshAuthInterceptor(http, {
-  // Called when a 401 is received
   refreshToken: async () => {
     const response = await fetch("/auth/refresh", { method: "POST" });
     const data = await response.json();
-    return data.accessToken; // Return the new token
+    return data.accessToken;
   },
   onTokenRefreshed: async (newToken) => {
-    // Update token in your store/context
-    await localStorage.setItem("auth_token", newToken);
+    localStorage.setItem("auth_token", newToken);
   },
-  // Optional: status codes that trigger refresh (default: [401])
-  statusCodes: [401], // Refresh on 401
+  statusCodes: [401],
 });
 
-// Add to interceptors
 http.interceptors.response.use((response) => response, refreshInterceptor);
 
-// If two concurrent requests both get 401:
-// - Only ONE refresh call is made
-// - Both requests are retried with the new token
 const [profile, orders] = await Promise.all([
   http.get("/profile"),
   http.get("/orders"),
@@ -809,9 +711,8 @@ const apiClient = createHttp({
 });
 ```
 
-### Cookie Forwarding (SSR) Cookie-Based Sessions (SSR)
+### Cookie Forwarding for SSR
 
-#### With Explicit Context
 ```typescript
 import { createServerHttp } from "rhttp.io/server";
 import { getRequest } from "@tanstack/react-start/server";
@@ -819,15 +720,13 @@ import { getRequest } from "@tanstack/react-start/server";
 const http = createServerHttp({
   baseURL: process.env.API_URL,
   auth: {
-    forwardCookies: true, // Forward incoming request cookies
+    forwardCookies: true,
   },
-  requestContext: () => getRequest(), /// Enabled by default on Tanstack start 
+  requestContext: () => getRequest(),
 });
 
-// In TanStack Start
 export const fetchProtectedData = createServerFn({ method: "GET" }).handler(
   async () => {
-    // Cookies from request are automatically forwarded
     return http.get("/protected-data");
   },
 );
@@ -848,12 +747,11 @@ const http = createClientHttp({
     cookieName: "csrf-token",
     headerName: "X-CSRF-Token",
     methods: ["POST", "PUT", "PATCH", "DELETE"],
-    prefetch: true, // Fetch token on load
+    prefetch: true,
   },
 });
 
-// Token is automatically injected on mutations
-await http.post("/items", { name: "test" }); // CSRF token auto-injected
+await http.post("/items", { name: "test" });
 ```
 
 ### Manual CSRF Token
@@ -866,7 +764,6 @@ const http = createHttp({
   },
 });
 
-// Override for specific request
 await http.post("/items", { name: "test" }, { csrf: false });
 ```
 
@@ -879,15 +776,14 @@ await http.post("/items", { name: "test" }, { csrf: false });
 ```typescript
 const http = createHttp({
   retry: {
-    attempts: 3, // Retry up to 3 times
-    strategy: "exponential", // exponential | linear | none
-    delay: 300, // Initial delay (ms)
-    maxDelay: 30_000, // Max delay between retries (ms)
-    statusCodes: [408, 429, 500, 502, 503, 504], // Retryable status codes
+    attempts: 3,
+    strategy: "exponential",
+    delay: 300,
+    maxDelay: 30_000,
+    statusCodes: [408, 429, 500, 502, 503, 504],
   },
 });
 
-// Override per-request
 await http.get("/items", {
   retry: {
     attempts: 5,
@@ -896,7 +792,6 @@ await http.get("/items", {
   },
 });
 
-// Disable retry
 await http.get("/items", { retry: false });
 ```
 
@@ -912,12 +807,12 @@ const http = createHttp({
     statusCodes: [],
     shouldRetry: async (error, attemptNumber) => {
       if (error instanceof HttpError) {
-        // Custom logic: retry on 503 or rate limit
         if (error.status === 503) return attemptNumber < 3;
+
         if (error.status === 429) {
           const retryAfter = error.headers["retry-after"];
           if (retryAfter) {
-            await sleep(parseInt(retryAfter) * 1000);
+            await sleep(parseInt(retryAfter, 10) * 1000);
             return true;
           }
         }
@@ -931,115 +826,15 @@ const http = createHttp({
 ### Exponential Backoff with Jitter
 
 ```typescript
-// Built-in exponential backoff
-// Delay formula: min(initialDelay * 2^attemptNumber, maxDelay)
-// Example with delay=300, maxDelay=30000:
+// Delay formula:
+// min(initialDelay * 2^attemptNumber, maxDelay)
+//
+// Example with delay=300 and maxDelay=30000:
 // Attempt 1: 300ms
 // Attempt 2: 600ms
 // Attempt 3: 1200ms
 // Attempt 4: 2400ms
-// ... up to 30000ms
-```
-
----
-
-## ✅Request & Response Validation
-
-### Global Request Validation
-
-Block requests that don't match your criteria:
-
-```typescript
-const http = createHttp({
-  baseURL: "https://api.example.com",
-  requestValidator: (url, options) => {
-    // Block requests to admin endpoints from the client
-    if (url.includes("/admin") && typeof window !== "undefined") {
-      return false; // Throws: "Request validation failed"
-    }
-    return true;
-  },
-});
-```
-
-### Global Error Handler
-
-```typescript
-http.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    if (error instanceof HttpError) {
-      // Log error
-      console.error(`[${error.requestId}] ${error.status} ${error.url}`);
-
-      // Send to monitoring
-      await fetch("/api/errors", {
-        method: "POST",
-        body: JSON.stringify({
-          status: error.status,
-          url: error.url,
-          message: error.message,
-          requestId: error.requestId,
-        }),
-      });
-
-      // Handle specific status codes
-      if (error.status === 401) {
-        // Redirect to login
-        window.location.href = "/login";
-      } else if (error.status === 429) {
-        // Rate limited
-        console.warn("Rate limited. Backing off...");
-      }
-    }
-
-    throw error;
-  }
-);
-```
-
----
-
-### Per-Request Response Validation
-
-Validate response data shape before it reaches your code:
-
-```typescript
-const { data } = await http.get<User>("/users/123", {
-  validateResponse: (data) => {
-    // Ensure the response has the expected shape
-    return data && typeof data.id === "number" && typeof data.name === "string";
-  },
-});
-// Throws HttpError with message "Response validation failed" if validation returns false
-```
-
-## Response Transformers
-
-Transform response data at the global or per-request level:
-
-```typescript
-const http = createHttp({
-  baseURL: "https://api.example.com",
-  // Global transformer: runs on every response
-  responseTransformer: (data, response) => {
-    // Convert ISO date strings to Date objects
-    if (data.createdAt) data.createdAt = new Date(data.createdAt);
-    if (data.updatedAt) data.updatedAt = new Date(data.updatedAt);
-    return data;
-  },
-});
-
-// Per-request transformer: runs after the global one
-const { data } = await http.get("/orders", {
-  transformer: (data) => {
-    // Add computed fields
-    return data.map((order) => ({
-      ...order,
-      total: order.items.reduce((sum, item) => sum + item.price, 0),
-    }));
-  },
-});
+// ...
 ```
 
 ---
@@ -1057,12 +852,11 @@ const limiter = new RateLimiter({
   maxBurst: 500,
 });
 
-// Acquire tokens before request
 await limiter.acquire(url, method, weight);
 const response = await http.get(url);
 ```
 
-### Integrate with Client
+### Integrate with the Client
 
 ```typescript
 const limiter = new RateLimiter({
@@ -1097,13 +891,55 @@ http.interceptors.response.use(async (response) => {
   return response;
 });
 
-// Get profiling data
 const stats = profiler.getStats();
 console.log(`Average request time: ${stats.averageDuration}ms`);
 
 const profiles = profiler.getProfiles({ url: "/api" });
 profiles.forEach((p) => {
   console.log(`${p.method} ${p.url}: ${p.duration}ms`);
+});
+```
+
+---
+
+## Monitoring & Observability
+
+### Metrics Collection
+
+```typescript
+const http = createHttp({
+  observability: {
+    logger: true,
+    tracing: true,
+    metrics: true,
+  },
+});
+
+const metrics = http.getMetrics();
+```
+
+### Request History
+
+```typescript
+const history = http.getHistory();
+
+const userRequests = history.filter((r) => r.url.includes("/users"));
+const slowRequests = history.filter((r) => r.durationMs > 1000);
+const entry = history.find((r) => r.requestId === "abc-123");
+```
+
+### Custom Logger
+
+```typescript
+const http = createHttp({
+  observability: {
+    logger: {
+      debug: (msg, ctx) => console.debug(msg, ctx),
+      info: (msg, ctx) => console.info(msg, ctx),
+      warn: (msg, ctx) => console.warn(msg, ctx),
+      error: (msg, ctx) => console.error(msg, ctx),
+    },
+  },
 });
 ```
 
@@ -1117,11 +953,12 @@ profiles.forEach((p) => {
 import { withReact } from "rhttp.io/react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 
-const http = withReact(createHttp({
-  baseURL: "https://api.example.com",
-}));
+const http = withReact(
+  createHttp({
+    baseURL: "https://api.example.com",
+  }),
+);
 
-// Query
 function Posts() {
   const { data, isLoading } = useQuery({
     ...http.query<Post[]>({
@@ -1131,10 +968,9 @@ function Posts() {
     }),
   });
 
-  return <div>{data?.map(p => <div key={p.id}>{p.title}</div>)}</div>;
+  return <div>{data?.map((post) => <div key={post.id}>{post.title}</div>)}</div>;
 }
 
-// Mutation
 function CreatePost() {
   const mutation = useMutation({
     ...http.mutation<CreatePostInput, Post>({
@@ -1153,14 +989,13 @@ function CreatePost() {
 
 ---
 
-## Realtime Socket.io Client
+## Socket.IO Realtime
 
 ### Basic Usage
 
 ```typescript
 import { createRealtimeClient } from "rhttp.io/socket.io.client";
 
-// Create client
 const realtimeClient = createRealtimeClient({
   url: "https://api.example.com",
   auth: {
@@ -1180,17 +1015,13 @@ realtimeClient.disconnect();
 
 ### Logging
 
-Enable built-in logging or provide a custom logger:
-
 ```typescript
-// Built-in console logging
 const realtimeClient = createRealtimeClient({
   socketUrl: "https://ws.example.com",
-  logger: true, // Logs connect/disconnect/emit/receive events
+  logger: true,
 });
 
-// Custom logger (e.g., Pino, Winston)
-const realtimeClient = createRealtimeClient({
+const realtimeClientWithLogger = createRealtimeClient({
   socketUrl: "https://ws.example.com",
   logger: {
     debug: (...args) => myLogger.debug(...args),
@@ -1201,33 +1032,33 @@ const realtimeClient = createRealtimeClient({
 });
 ```
 
-### Event Validation & Transformation
-
-Validate and transform events before they are emitted or processed:
+### Event Validation and Transformation
 
 ```typescript
 const realtimeClient = createRealtimeClient({
   socketUrl: "https://ws.example.com",
 
-  // Validate events (return false to block)
   eventValidator: (event, data, direction) => {
     if (direction === "emit" && event === "message") {
       return typeof data.text === "string" && data.text.length > 0;
     }
+
     if (direction === "receive" && event === "notification") {
       return data.type !== undefined;
     }
+
     return true;
   },
 
-  // Transform event payloads
   eventTransformer: (event, data, direction) => {
     if (direction === "emit") {
       return { ...data, timestamp: Date.now() };
     }
+
     if (direction === "receive" && event === "message") {
       return { ...data, receivedAt: new Date() };
     }
+
     return data;
   },
 });
@@ -1254,7 +1085,7 @@ const realtimeClient = createRealtimeClient({
 });
 ```
 
-### Rooms & Offline Queue
+### Rooms and Offline Queue
 
 ```typescript
 const realtimeClient = createRealtimeClient({
@@ -1263,24 +1094,21 @@ const realtimeClient = createRealtimeClient({
   offlineQueue: { enabled: true, maxSize: 100 },
 });
 
-// Join rooms (auto-queued if offline, auto-rejoined on reconnect)
 await realtimeClient.joinRoom("chat:general");
 await realtimeClient.joinRoom("notifications");
 
-// Messages are queued when offline and flushed on reconnect
 realtimeClient.emit("message", { text: "Hello" });
 
-console.log(realtimeClient.getRooms()); // ["chat:general", "notifications"]
-console.log(realtimeClient.getQueueLength()); // 0 if connected, N if offline
+console.log(realtimeClient.getRooms());
+console.log(realtimeClient.getQueueLength());
 ```
 
-### Setup
+### Provider Setup
 
 ```typescript
 import { createRealtimeClient } from "rhttp.io/socket.io.client";
 import { RealtimeProvider, useSocketClient } from "rhttp.io/socket.io.client";
 
-// Create client
 const realtimeClient = createRealtimeClient({
   url: "https://api.example.com",
   auth: {
@@ -1292,7 +1120,6 @@ const realtimeClient = createRealtimeClient({
   reconnectionAttempts: 5,
 });
 
-// Wrap app
 function App() {
   return (
     <RealtimeProvider client={realtimeClient}>
@@ -1319,12 +1146,72 @@ function ChatBox() {
 
   return (
     <div>
-      Status: {connected ? "Connected" : "Disconnected"}
-      <button onClick={() => sendMessage("Hello")}> Send
-      <button>
+      <p>Status: {connected ? "Connected" : "Disconnected"}</p>
+      <button onClick={() => sendMessage("Hello")}>Send</button>
     </div>
   );
 }
+```
+
+---
+
+## Extensions
+
+### GraphQL Support
+
+```typescript
+import { withGraphQL } from "rhttp.io/extensions";
+
+const graphql = withGraphQL(http, "/graphql");
+
+const { data: posts } = await graphql.query<{ posts: Post[] }>({
+  query: `query { posts { id title } }`,
+});
+
+const { data: newPost } = await graphql.mutation<{ createPost: Post }>({
+  query: `mutation CreatePost($title: String!) {
+    createPost(title: $title) { id title }
+  }`,
+  variables: { title: "Hello" },
+});
+```
+
+### Schema Validation (Zod)
+
+```typescript
+import { withSchemaValidation } from "rhttp.io/extensions";
+import { z } from "zod";
+
+const UserSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  email: z.string().email(),
+});
+
+const httpWithSchema = withSchemaValidation(
+  createHttp({
+    baseURL: "https://api.example.com",
+  }),
+);
+
+const { data: user } = await httpWithSchema.get("/user", {
+  schema: UserSchema,
+});
+```
+
+### Request Compression
+
+```typescript
+import { createCompressionMiddleware } from "rhttp.io/extensions";
+
+const compression = createCompressionMiddleware({
+  enabled: true,
+  algorithm: "gzip",
+  threshold: 1024,
+  level: 6,
+});
+
+http.use(compression);
 ```
 
 ---
@@ -1347,27 +1234,23 @@ const http = createHttp({
   auth: { accessToken: "jwt-token", scheme: "Bearer" },
 });
 
-// Read
 async function getItems() {
   const { data } = await http.get<Item[]>("/items");
   return data;
 }
 
-// Create
 async function createItem(name: string) {
   const { data } = await http.post<{ name: string }, Item>("/items", { name });
-  http.invalidateCache("/items"); // Refresh list
+  http.invalidateCache("/items");
   return data;
 }
 
-// Update
 async function updateItem(id: string, updates: Partial<Item>) {
   const { data } = await http.put<Partial<Item>, Item>(`/items/${id}`, updates);
   http.invalidateCache("/items");
   return data;
 }
 
-// Delete
 async function deleteItem(id: string) {
   await http.delete(`/items/${id}`);
   http.invalidateCache("/items");
@@ -1386,10 +1269,7 @@ async function uploadFile(file: File) {
     "/upload",
     formData,
     {
-      headers: {
-        // Omit Content-Type, browser will set it with boundary
-      },
-      timeout: 60_000, // Longer timeout for large files
+      timeout: 60_000,
     },
   );
 
@@ -1397,24 +1277,26 @@ async function uploadFile(file: File) {
 }
 ```
 
-### Streaming Response
+### Streaming Response / File Download
 
 ```typescript
 async function downloadFile(filename: string) {
-  const response = await http.customFetch(`/files/${filename}`, {
+  const response = await http.customFetch<Blob>(`/files/${filename}`, {
     method: "GET",
   });
 
-  const blob = response.data; // Response is already Blob
+  const blob = response.data;
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
   a.download = filename;
   a.click();
+  URL.revokeObjectURL(url);
 }
 ```
 
 ---
+
 ## Circuit Breaker Pattern
 
 ### Implementation
@@ -1426,10 +1308,9 @@ const breaker = new CircuitBreaker({
   enabled: true,
   failureThreshold: 5,
   successThreshold: 2,
-  timeout: 60000,
+  timeout: 60_000,
 });
 
-// Use in interceptor
 http.interceptors.request.use(async (options) => {
   try {
     return await breaker.execute(async () => options);
@@ -1444,12 +1325,11 @@ http.interceptors.request.use(async (options) => {
 
 ```typescript
 const status = breaker.getStatus();
-console.log(status.state);              // "closed" | "open" | "half-open"
+console.log(status.state); // "closed" | "open" | "half-open"
 console.log(status.failures);
 console.log(status.rejectedCount);
 console.log(status.timeUntilHalfOpen);
 
-// Check state
 if (breaker.isOpen()) {
   console.log("Service unavailable, retrying in", status.timeUntilHalfOpen, "ms");
 }
@@ -1488,41 +1368,23 @@ console.log(`Queued: ${stats.queueLength}`);
 ```typescript
 const http = createHttp({
   observability: {
-    logger: true,      // Console logging
-    tracing: true,     // X-Request-ID headers
-    metrics: true,     // Metrics collection
+    logger: true,
+    tracing: true,
+    metrics: true,
   },
 });
 
-// Get metrics
 const metrics = http.getMetrics();
-{
-  totalRequests: 150,
-  successfulRequests: 145,
-  failedRequests: 5,
-  durations: [12, 45, 23, ...],
-  statusCodes: {
-    200: 140,
-    201: 5,
-    500: 5,
-  }
-}
+console.log(metrics);
 ```
 
 ### Request History
 
 ```typescript
-// Get all requests
 const history = http.getHistory();
-
-// Filter by URL
-const userRequests = history.filter(r => r.url.includes("/users"));
-
-// Find slow requests
-const slow = history.filter(r => r.durationMs > 1000);
-
-// Get request details
-const entry = history.find(r => r.requestId === "abc-123");
+const userRequests = history.filter((req) => req.url.includes("/users"));
+const slow = history.filter((req) => req.durationMs > 1000);
+const entry = history.find((req) => req.requestId === "abc-123");
 ```
 
 ### Custom Logger
@@ -1542,92 +1404,29 @@ const http = createHttp({
 
 ---
 
-## Extensions
-
-### GraphQL Support
-
-```typescript
-import { withGraphQL } from "rhttp.io/extensions";
-
-const graphql = withGraphQL(http, "/graphql");
-
-// Query
-const { data: posts } = await graphql.query<{ posts: Post[] }>({
-  query: `query { posts { id title } }`,
-});
-
-// Mutation
-const { data: newPost } = await graphql.mutation<{ createPost: Post }>({
-  query: `mutation CreatePost($title: String!) { 
-    createPost(title: $title) { id title }
-  }`,
-  variables: { title: "Hello" },
-});
-```
-
-### Schema Validation (Zod)
-
-```typescript
-import { withSchemaValidation } from "rhttp.io/extensions";
-import { z } from "zod";
-
-const UserSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  email: z.string().email(),
-});
-
-const http = withSchemaValidation(createHttp({
-  baseURL: "https://api.example.com",
-}));
-
-// Automatic validation
-const { data: user } = await http.get("/user", {
-  schema: UserSchema,
-  // Guaranteed to match schema or throw
-});
-```
-
-### Request Compression
-
-```typescript
-import { createCompressionMiddleware } from "rhttp.io/extensions";
-
-const compression = createCompressionMiddleware({
-  enabled: true,
-  algorithm: "gzip",
-  threshold: 1024,  // Compress bodies > 1KB
-  level: 6,
-});
-
-http.use(compression);
-```
-
----
 ## Troubleshooting
 
 ### Request Hangs
 
-**Problem**: Request never completes.
+**Problem:** Request never completes.
 
-**Solution**: Set timeout.
+**Solution:** Set a timeout.
 
 ```typescript
 const http = createHttp({
-  timeout: 30_000, // 30 seconds
+  timeout: 30_000,
 });
 
-await http.get("/endpoint", { timeout: 10_000 }); // Override
+await http.get("/endpoint", { timeout: 10_000 });
 ```
 
 ### CORS Errors
 
-**Problem**: "Access to XMLHttpRequest has been blocked by CORS policy".
+**Problem:** `Access to XMLHttpRequest has been blocked by CORS policy`.
 
-**Solution**: Server must include CORS headers.
+**Solution:** Configure CORS headers on the server.
 
 ```typescript
-// Server-side (Node.js/Express example)
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "https://example.com");
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE");
@@ -1638,33 +1437,32 @@ app.use((req, res, next) => {
 
 ### Memory Leaks
 
-**Problem**: Cache grows unbounded.
+**Problem:** Cache grows without bounds.
 
-**Solution**: Set TTL, clear cache periodically.
+**Solution:** Set TTL and clean up periodically.
 
 ```typescript
 const http = createHttp({
   cache: {
     enabled: true,
-    ttl: 60_000, // Auto-expire after 1 minute
+    ttl: 60_000,
   },
 });
 
-// Periodic cleanup
 setInterval(() => {
   http.clearCache();
-}, 600_000); // Every 10 minutes
+}, 600_000);
 ```
 
 ### Circuit Breaker Open
 
-**Problem**: "Circuit breaker is OPEN - request blocked".
+**Problem:** `Circuit breaker is OPEN - request blocked`.
 
-**Solution**: Check backend health, reset breaker.
+**Solution:** Check backend health and reset the breaker if needed.
 
 ```typescript
 const status = http.getCircuitBreakerStatus();
-console.log(status.state); // "open" | "closed" | "half-open"
+console.log(status.state);
 
 if (status.state === "open") {
   http.resetCircuitBreaker();
@@ -1673,24 +1471,25 @@ if (status.state === "open") {
 
 ### 401 Unauthorized Loop
 
-**Problem**: Token refresh causes infinite 401 loop.
+**Problem:** Token refresh triggers an infinite 401 loop.
 
-**Solution**: Ensure refresh endpoint works independently.
+**Solution:** Ensure the refresh endpoint works independently and guard retries.
 
 ```typescript
 http.interceptors.response.use(
   (res) => res,
   async (error) => {
     if (error instanceof HttpError && error.status === 401) {
-      // Only retry once
       if (error.options?._retry) {
-        throw error; // Give up
+        throw error;
       }
-      // Try refresh
+
       const newToken = await refreshToken();
       error.options._retry = true;
+
       return http.customFetch(error.url, error.options);
     }
+
     throw error;
   },
 );
@@ -1700,16 +1499,16 @@ http.interceptors.response.use(
 
 ## Best Practices
 
-1. **Set Reasonable Timeouts**: Prevents hanging requests.
-2. **Use Cache Strategy**: Don't spam endpoints unnecessarily.
-3. **Handle Errors Properly**: Distinguish between error types.
-4. **Monitor Metrics**: Track performance in production.
-5. **Implement Retry Logic**: But avoid retry storms.
-6. **Use Request IDs**: For debugging and tracing.
-7. **Validate Responses**: Catch errors early.
-8. **Clean Up Resources**: Cancel requests, clear cache when needed.
-9. **Test Error Cases**: Don't just test happy path.
-10. **Document API Contract**: Share response schemas with frontend team.
+1. **Set reasonable timeouts** to avoid hanging requests.
+2. **Use cache strategies carefully** to reduce unnecessary network calls.
+3. **Handle errors explicitly** and distinguish timeout, network, and HTTP failures.
+4. **Monitor metrics** in production.
+5. **Use retry logic responsibly** to avoid retry storms.
+6. **Attach request IDs** for debugging and tracing.
+7. **Validate responses** as early as possible.
+8. **Clean up resources** by canceling requests and clearing cache when needed.
+9. **Test failure paths**, not only success paths.
+10. **Document the API contract** so frontend and backend stay aligned.
 
 ---
 
@@ -1736,247 +1535,33 @@ const data = await response.json();
 // After (rhttp.io)
 const http = createHttp({ baseURL: "https://api.example.com" });
 const { data } = await http.get("/items");
-
-// Advantages:
-// - Automatic JSON parsing
-// - Built-in error handling
-// - Retry logic
-// - Caching
-// - Type safety
 ```
+
+### Benefits
+
+- Automatic JSON parsing
+- Built-in error handling
+- Retry logic
+- Caching
+- Type safety
 
 ---
-## 🚀 Advanced Features
 
-### Circuit Breaker Pattern
-
-Prevent cascading failures by automatically stopping requests when a service becomes unhealthy.
-
-```typescript
-const http = createHttp({
-  circuitBreaker: {
-    enabled: true,
-    failureThreshold: 5,        // Fail after 5 consecutive errors
-    successThreshold: 2,        // Recover after 2 successes
-    timeout: 30_000,            // Time until half-open state (30s)
-  },
-});
-
-// Check status
-const status = http.getCircuitBreakerStatus();
-console.log(status); // { state: "closed", failures: 0, successes: 0 }
-
-// Manual reset if needed
-http.resetCircuitBreaker();
-```
-
-### Request Pooling
-
-Limit concurrent requests to prevent overwhelming the server.
-
-```typescript
-const http = createHttp({
-  requestPool: {
-    enabled: true,
-    maxConcurrent: 5,           // Max 5 concurrent requests
-  },
-});
-
-// 10 requests will be queued, max 5 running at a time
-const promises = Array(10).fill().map(() => http.get("/endpoint"));
-await Promise.all(promises); // ✓ Efficiently queued
-```
-
-### Automatic Polling
-
-Poll an endpoint until a condition is met.
-
-```typescript
-const { data } = await http.poll<JobStatus>("/jobs/123/status", {
-  polling: {
-    interval: 2_000,             // Poll every 2 seconds
-    maxAttempts: 30,             // Stop after 30 polls (1 minute total)
-    stopCondition: (response) => response.data.status === "completed",
-  },
-});
-```
-
-### ETag Support for Bandwidth Optimization
-
-Automatically use ETags to avoid re-downloading unchanged responses.
-
-```typescript
-const http = createHttp({
-  etag: {
-    enabled: true,
-    storage: "memory",           // or "localStorage" for persistence
-  },
-});
-
-// First request: downloads full response, stores ETag
-const { data: users1 } = await http.get("/users");
-
-// Second request: sends If-None-Match header with ETag
-// If unchanged, server returns 304 Not Modified
-// Cached data is automatically returned
-const { data: users2 } = await http.get("/users");
-```
-
-### Advanced Cache Strategies
-
-Choose the perfect cache strategy for your use case.
-
-```typescript
-// cache-first: Always use cache if available, fallback to network
-await http.get("/data", { cacheStrategy: "cache-first" });
-
-// network-first: Try network first, fallback to cache on failure
-await http.get("/data", { cacheStrategy: "network-first" });
-
-// cache-only: Only use cache, never network
-const cached = await http.get("/data", { cacheStrategy: "cache-only" });
-
-// network-only: Always fetch fresh, ignore cache
-const fresh = await http.get("/data", { cacheStrategy: "network-only" });
-
-// stale-while-revalidate: Return cache immediately, update in background
-const { data } = await http.get("/data", { 
-  cacheStrategy: "stale-while-revalidate" 
-});
-```
-
-### Plugin System for Extensibility
-
-Create custom plugins to extend HTTP client behavior.
-
-```typescript
-const loggingPlugin = {
-  name: "logging",
-  beforeRequest: async (url, options) => {
-    console.log(`→ ${options.method} ${url}`);
-    return options;
-  },
-  afterResponse: async (response) => {
-    console.log(`← ${response.status} in ${response.durationMs}ms`);
-    return response;
-  },
-  onError: async (error) => {
-    console.error(`✕ Error: ${error.message}`);
-    throw error;
-  },
-};
-
-const http = createHttp({});
-http.use(loggingPlugin);
-
-// Analytics plugin
-const analyticsPlugin = {
-  name: "analytics",
-  afterResponse: async (response) => {
-    // Send to analytics service
-    await fetch("/api/analytics", {
-      method: "POST",
-      body: JSON.stringify({
-        endpoint: response.response.url,
-        status: response.status,
-        duration: response.durationMs,
-      }),
-    });
-    return response;
-  },
-};
-
-http.use(analyticsPlugin);
-```
-
-### Request History & Debugging
-
-Track recent requests for debugging and monitoring.
-
-```typescript
-const http = createHttp({});
-
-// Make some requests
-await http.get("/api/users");
-await http.post("/api/orders", { item: "laptop" });
-await http.get("/api/orders/123");
-
-// Get request history
-const history = http.getHistory();
-// [
-//   { requestId: "uuid-1", url: "https://api.../users", method: "GET", status: 200, durationMs: 45 },
-//   { requestId: "uuid-2", url: "https://api.../orders", method: "POST", status: 201, durationMs: 123 },
-//   { requestId: "uuid-3", url: "https://api.../orders/123", method: "GET", status: 200, durationMs: 32 },
-// ]
-
-// Filter by status code
-const failed = history.filter(req => req.status >= 400);
-
-// Find slowest requests
-const slowest = history.sort((a, b) => b.durationMs - a.durationMs);
-```
-
-### Lifecycle Hooks
-
-Execute custom logic at specific points in the request lifecycle.
-
-```typescript
-const http = createHttp({
-  hooks: {
-    onRequest: async (url, options) => {
-      console.log(`Starting request to ${url}`);
-      // Track request start time, add custom headers, etc.
-    },
-    
-    onSuccess: async (response) => {
-      console.log(`Request successful: ${response.status}`);
-      // Update UI, cache results, analytics, etc.
-    },
-    
-    onError: async (error) => {
-      console.error(`Request failed: ${error.message}`);
-      // Show user notification, retry logic, etc.
-    },
-    
-    onFinally: async () => {
-      console.log("Request complete");
-      // Cleanup, close loading spinners, etc.
-    },
-  },
-});
-```
-
-### Request Cancellation
-
-Cancel ongoing requests at any time.
-
-```typescript
-const http = createHttp({});
-
-const requestId = generateRequestId();
-
-// Start a long-running request
-const promise = http.get("/slow-endpoint", { requestId });
-
-// Cancel after 5 seconds
-setTimeout(() => {
-  http.cancel(requestId); // Cancel specific request
-  // Or: http.cancel(); // Cancel all ongoing requests
-}, 5_000);
-```
-## 📄 License
+## License
 
 MIT
 
-## 🤝 Contributing
+---
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+## Contributing
+
+Contributions are welcome. Please submit a pull request with clear explanations and examples when possible.
 
 ---
 
 ## Support
 
-For issues, questions, or feature requests, visit:
+For issues, questions, or feature requests:
 
 - GitHub: https://github.com/elprof45/rhttp.io
 - Issues: https://github.com/elprof45/rhttp.io/issues
