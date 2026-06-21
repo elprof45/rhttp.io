@@ -1,12 +1,28 @@
-# rhttp.io - Complete Documentation
+<div align="center">
 
-Universal HTTP client. Caching, retries, circuit breaker, JWT, CSRF, Socket.io. Isomorphic for browsers, Node.js, Edge.
+<div align="center">
+  <img src="./public/assets/rhttp-cover.png" alt="rhttp.io cover" width="100%" />
+  <br /><br />
+  <!-- <img src="./public/assets/rhttp-logo.png" alt="rhttp.io logo" width="220" /> -->
+</div>
 
-## Demo
+  # rhttp.io
 
-Insert gif or link to demo
+  ### The HTTP Client for Modern Applications
 
-![Logo](https://dev-to-uploads.s3.amazonaws.com/uploads/articles/th5xamgrr6se0x5ro4g6.png)
+  Type-safe • Secure • High Performance • Full-stack Ready  
+  Universal HTTP client. Caching, retries, circuit breaker, JWT, CSRF, Socket.io.  
+  Isomorphic for browsers, Node.js, Edge.  
+  From Browser to Server, from REST to Realtime.
+
+  <br />
+
+  [![npm version](https://img.shields.io/npm/v/rhttp.io?color=blue&style=flat-square)](https://www.npmjs.com/package/rhttp.io)
+  [![license](https://img.shields.io/npm/l/rhttp.io?style=flat-square)](LICENSE)
+  [![typescript](https://img.shields.io/badge/TypeScript-Ready-blue?style=flat-square)](https://www.typescriptlang.org/)
+  [![node](https://img.shields.io/badge/Node-%3E%3D18-green?style=flat-square)](https://nodejs.org/)
+
+</div>
 
 ## ✨ Features
 

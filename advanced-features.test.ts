@@ -616,7 +616,10 @@ describe("Polling Manager", () => {
     });
 
     expect(attemptCount).toBe(3);
-    expect(result).toBeUndefined();
+    // When maxAttempts is exhausted without meeting stopCondition,
+    // poll() resolves with the last result (not undefined) so callers
+    // can inspect the final state.
+    expect(result).toEqual({ status: "pending" });
   });
 
   test("Polling Manager can be stopped", async () => {

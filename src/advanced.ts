@@ -197,17 +197,34 @@ export class RequestPool {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Polling Manager
+// Polling Manager (USE UPDATED VERSION FROM polling-fix.ts)
 // ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * IMPORTANT: This PollingManager has been updated to fix these issues:
+ * 1. Execute immediately on first poll (don't delay with interval)
+ * 2. Return last result when maxAttempts is reached (not undefined)
+ * 3. Proper promise resolution without memory leaks
+ *
+ * See polling-fix.ts for the corrected implementation
+ */
 
 export class PollingManager {
   private defaultOptions: Partial<PollingConfig>;
   private timers: Map<string, { timer: NodeJS.Timeout; resolve: (value: any) => void }> = new Map();
+  private lastResults: Map<string, any> = new Map();
 
   constructor(defaultOptions: Partial<PollingConfig> = {}) {
     this.defaultOptions = defaultOptions;
   }
 
+  /**
+   * Poll with immediate first execution
+   * @param fn Function to execute repeatedly
+   * @param config Polling configuration
+   * @param requestId Unique ID for this polling session
+   * @returns Promise that resolves when stopCondition is met or maxAttempts reached
+   */
   async poll<T>(
     fn: () => Promise<T>,
     config?: Partial<PollingConfig>,
@@ -222,32 +239,107 @@ export class PollingManager {
 
     let attempt = 0;
     const maxAttempts = mergedConfig.maxAttempts ?? Infinity;
+    let lastResult: T | undefined;
 
     return new Promise((resolve, reject) => {
       const executePoll = async () => {
         try {
-          if (attempt >= maxAttempts) {
+          attempt++;
+
+          // Check maxAttempts BEFORE executing
+          if (attempt > maxAttempts) {
             this.timers.delete(requestId);
-            resolve(undefined as any);
+            this.lastResults.delete(requestId);
+            // Return last result (not undefined!)
+            resolve(lastResult as T);
             return;
           }
 
-          attempt++;
+          // Execute the polling function
           const result = await fn();
+          lastResult = result;
 
+          // Store result for later retrieval
+          this.lastResults.set(requestId, result);
+
+          // Check stop condition
           if (mergedConfig.stopCondition?.(result)) {
             this.timers.delete(requestId);
+            this.lastResults.delete(requestId);
             resolve(result);
-          } else {
-            const timer = setTimeout(executePoll, mergedConfig.interval);
-            this.timers.set(requestId, { timer, resolve });
+            return;
           }
+
+          // Schedule next poll
+          const timer = setTimeout(executePoll, mergedConfig.interval);
+          this.timers.set(requestId, { timer, resolve });
         } catch (error) {
           this.timers.delete(requestId);
+          this.lastResults.delete(requestId);
           reject(error);
         }
       };
 
+      // Execute IMMEDIATELY for first attempt (don't delay with interval)
+      executePoll().catch((err) => {
+        reject(err);
+      });
+    });
+  }
+
+  /**
+   * Poll with delay before first execution
+   * Use this if you want to delay the first request
+   */
+  async pollWithDelay<T>(
+    fn: () => Promise<T>,
+    config?: Partial<PollingConfig>,
+    requestId: string = "default"
+  ): Promise<T> {
+    const mergedConfig = {
+      interval: 1000,
+      maxAttempts: Infinity,
+      ...this.defaultOptions,
+      ...config,
+    };
+
+    let attempt = 0;
+    const maxAttempts = mergedConfig.maxAttempts ?? Infinity;
+    let lastResult: T | undefined;
+
+    return new Promise((resolve, reject) => {
+      const executePoll = async () => {
+        try {
+          attempt++;
+
+          if (attempt > maxAttempts) {
+            this.timers.delete(requestId);
+            this.lastResults.delete(requestId);
+            resolve(lastResult as T);
+            return;
+          }
+
+          const result = await fn();
+          lastResult = result;
+          this.lastResults.set(requestId, result);
+
+          if (mergedConfig.stopCondition?.(result)) {
+            this.timers.delete(requestId);
+            this.lastResults.delete(requestId);
+            resolve(result);
+            return;
+          }
+
+          const timer = setTimeout(executePoll, mergedConfig.interval);
+          this.timers.set(requestId, { timer, resolve });
+        } catch (error) {
+          this.timers.delete(requestId);
+          this.lastResults.delete(requestId);
+          reject(error);
+        }
+      };
+
+      // Delay first execution
       const timer = setTimeout(executePoll, mergedConfig.interval);
       this.timers.set(requestId, { timer, resolve });
     });
@@ -257,8 +349,9 @@ export class PollingManager {
     const entry = this.timers.get(requestId);
     if (entry) {
       clearTimeout(entry.timer);
-      entry.resolve(undefined);
+      entry.resolve(this.lastResults.get(requestId));
       this.timers.delete(requestId);
+      this.lastResults.delete(requestId);
     }
   }
 
@@ -268,6 +361,11 @@ export class PollingManager {
       entry.resolve(undefined);
     }
     this.timers.clear();
+    this.lastResults.clear();
+  }
+
+  getLastResult(requestId: string = "default") {
+    return this.lastResults.get(requestId);
   }
 }
 

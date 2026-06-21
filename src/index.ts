@@ -16,6 +16,36 @@ export {
 } from "./advanced";
 export * from "./auth";
 
+// Secure token management
+export {
+  MemoryTokenStorage,
+  SessionStorageTokenStorage,
+  HybridTokenStorage,
+  IndexedDBTokenStorage,
+  getRecommendedTokenStorage,
+  getTokenStorage,
+  type TokenStorage,
+} from "./token-storage";
+
+// Advanced observability
+export {
+  createObservabilityMiddleware,
+  calculatePercentile,
+  type ObservabilityMetrics,
+  type RequestTrace,
+  type LogEntry,
+} from "./observability";
+
+// Optimization: Compression, HTTP/2 Push, Service Worker
+export {
+  createCompressionMiddleware,
+  createHttp2PushMiddleware,
+  createServiceWorkerMiddleware,
+  createModernClientOptimizations,
+  type CompressionConfig,
+  type Http2PushConfig,
+} from "./optimization";
+
 // Advanced features and extensions
 export {
   RateLimiter,
@@ -26,14 +56,14 @@ export {
   type RateLimitConfig,
   type RequestProfile,
   type Middleware,
-  type LogEntry,
+  type LogEntry as FeatureLogEntry,
   type StructuredLogger,
 } from "./features";
 
 export {
   withGraphQL,
   withSchemaValidation,
-  createCompressionMiddleware,
+  createCompressionMiddleware as createCompressionMiddlewareExt,
   calculateRetryDelayWithJitter,
   ValidationError,
   AuthenticationError,
@@ -46,6 +76,6 @@ export {
   type GraphQLRequest,
   type GraphQLResponse,
   type GraphQLError,
-  type CompressionConfig,
+  type CompressionConfig as ExtCompressionConfig,
   type SchemaValidator,
 } from "./extensions";
