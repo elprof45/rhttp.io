@@ -14,7 +14,13 @@ import type {
   InterceptorHandler,
   HttpMetrics,
 } from "./types";
-import { buildUrl, generateRequestId, getCookie, parseHeaders, parseResponse } from "./utils";
+import {
+  buildUrl,
+  generateRequestId,
+  getCookie,
+  parseHeaders,
+  parseResponse,
+} from "./utils";
 import {
   CircuitBreaker,
   RequestPool,
@@ -23,7 +29,6 @@ import {
   executeWithCacheStrategy,
   RequestHistory,
   PluginManager,
-  determineCacheStrategy,
 } from "./advanced";
 
 // Interceptor manager implementation
@@ -35,7 +40,7 @@ class InterceptorManagerImpl<T> implements InterceptorManager<T> {
 
   use(
     onFulfilled: (value: T) => Promise<T> | T,
-    onRejected?: (error: any) => Promise<any> | any
+    onRejected?: (error: any) => Promise<any> | any,
   ): InterceptorHandler<T> {
     this.handlers.push({ onFulfilled, onRejected });
     const id = this.handlers.length - 1;
@@ -55,7 +60,12 @@ class InterceptorManagerImpl<T> implements InterceptorManager<T> {
     this.handlers = [];
   }
 
-  forEach(fn: (handler: { onFulfilled: (value: T) => Promise<T> | T; onRejected?: (error: any) => Promise<any> | any }) => void): void {
+  forEach(
+    fn: (handler: {
+      onFulfilled: (value: T) => Promise<T> | T;
+      onRejected?: (error: any) => Promise<any> | any;
+    }) => void,
+  ): void {
     this.handlers.forEach((handler) => {
       if (handler !== null) {
         fn(handler);
@@ -64,9 +74,60 @@ class InterceptorManagerImpl<T> implements InterceptorManager<T> {
   }
 }
 
-// Request context store for SSR/frameworks (dynamically set by server entry point)
-let requestContextStore: { getStore: () => any; run: (store: any, callback: () => any) => any } | null = null;
+/**
+ * Request Context Store for SSR Frameworks
+ *
+ * Used by SSR frameworks (TanStack Start, Next.js, etc.) to access the current
+ * request during server-side rendering. This enables features like:
+ * - Cookie forwarding from incoming request to outgoing API calls
+ * - Request-scoped data (user, session, etc.)
+ * - Automatic auth header injection
+ *
+ * Initialize once at app startup:
+ * ```typescript
+ * import { setRequestContextStore } from 'rhttp.io';
+ * import { createServerContext } from '@tanstack/start';
+ *
+ * // TanStack Start (auto-detected if available)
+ * const requestContext = createServerContext();
+ * setRequestContextStore(requestContext);
+ *
+ * // Now all http clients with forwardCookies: true automatically
+ * // forward cookies from incoming to outgoing API calls
+ * const http = createServerHttp({ auth: { forwardCookies: true } });
+ * ```
+ *
+ * For custom SSR implementations, pass requestContext explicitly:
+ * ```typescript
+ * const http = createHttp({
+ *   auth: { forwardCookies: true },
+ *   requestContext: () => getActiveRequest(),
+ * });
+ * ```
+ */
+let requestContextStore: {
+  getStore: () => any;
+  run: (store: any, callback: () => any) => any;
+} | null = null;
 
+/**
+ * Initialize the request context store for SSR frameworks.
+ * Call this once at application startup, before creating http clients.
+ *
+ * @param store - Context store from framework (e.g., TanStack Start)
+ *
+ * @example
+ * ```typescript
+ * // TanStack Start
+ * import { createServerContext } from '@tanstack/start';
+ * const ctx = createServerContext();
+ * setRequestContextStore(ctx);
+ *
+ * // Next.js
+ * import { headers } from 'next/headers';
+ * setRequestContextStore({ getStore: () => ({ headers }) });
+ * ```
+ */
 export function setRequestContextStore(store: any) {
   requestContextStore = store;
 }
@@ -145,7 +206,10 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
   const logger = createLogger(observabilityConfig.logger);
 
   // In-memory cache & deduplication stores
-  const cacheMap = new Map<string, { expiry: number; response: HttpResponse<any> }>();
+  const cacheMap = new Map<
+    string,
+    { expiry: number; response: HttpResponse<any> }
+  >();
   const dedupMap = new Map<string, Promise<HttpResponse<any>>>();
 
   // Advanced features initialization
@@ -218,7 +282,11 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
   }
 
   // Prefetch CSRF token if active & browser context
-  if (csrfConfig.enabled && csrfConfig.prefetch && typeof window !== "undefined") {
+  if (
+    csrfConfig.enabled &&
+    csrfConfig.prefetch &&
+    typeof window !== "undefined"
+  ) {
     getCsrfToken().catch(() => {});
   }
 
@@ -226,12 +294,37 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
   const requestInterceptors = new InterceptorManagerImpl<any>();
   const responseInterceptors = new InterceptorManagerImpl<HttpResponse<any>>();
 
-  // Helper to merge headers case-insensitively from multiple sources
-  // Priority (lowest to highest): defaultFetchOptions.headers -> defaultHeaders -> request headers
+  /**
+   * Merge HTTP headers with clear priority order (case-insensitive).
+   *
+   * Priority (lowest to highest):
+   * 1. HTTP standards (Content-Type, Accept-Encoding, etc.)
+   * 2. defaultFetchOptions.headers (global fetch config)
+   * 3. defaultHeaders (client-level defaults)
+   * 4. CSRF token header (if CSRF protection enabled)
+   * 5. Authorization header (if auth enabled)
+   * 6. Per-request headers (HttpRequestOptions.headers) ← ALWAYS WINS
+   *
+   * Later sources override earlier ones, allowing per-request overrides.
+   * All header names are normalized to lowercase for consistency.
+   *
+   * @example
+   * ```typescript
+   * // Client-level default
+   * const http = createHttp({
+   *   defaultHeaders: { 'X-API-Version': '2' }
+   * });
+   *
+   * // Per-request override
+   * http.get('/api/legacy', {
+   *   headers: { 'X-API-Version': '1' } // overrides client default
+   * });
+   * ```
+   */
   function mergeHeaders(
     fetchOptionsHeaders?: Record<string, string>,
     defaultHeaders?: Record<string, string>,
-    reqHeaders?: Record<string, string>
+    reqHeaders?: Record<string, string>,
   ): Record<string, string> {
     const merged: Record<string, string> = {};
 
@@ -249,7 +342,7 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
       }
     }
 
-    // 3. Merge request headers (highest priority)
+    // 3. Merge request headers (highest priority, overrides all previous)
     if (reqHeaders) {
       for (const [key, val] of Object.entries(reqHeaders)) {
         merged[key.toLowerCase()] = val;
@@ -269,29 +362,41 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
   }
 
   // Sleep utility for retry mechanism
-  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+  const sleep = (ms: number) =>
+    new Promise((resolve) => setTimeout(resolve, ms));
 
   // Main HTTP requester function wrapped with cache, deduplication, and retries
-  async function performRequestWithAllFeatures(options: any): Promise<HttpResponse<any>> {
+  async function performRequestWithAllFeatures(
+    options: any,
+  ): Promise<HttpResponse<any>> {
     const method = options.method.toUpperCase();
     const isGet = method === "GET";
 
     // Plugin: beforeRequest hook
-    const pluginResult = await pluginManager.executeBeforeRequest(options.url, options);
+    const pluginResult = await pluginManager.executeBeforeRequest(
+      options.url,
+      options,
+    );
     const finalOptions = { ...options, ...pluginResult };
 
     // Caching configuration resolution
     const cacheOverride = finalOptions.cache;
-    const isCacheEnabled = cacheOverride !== false &&
-      (typeof cacheOverride === "object" ? (cacheOverride.enabled ?? true) : (cacheConfig.enabled));
+    const isCacheEnabled =
+      cacheOverride !== false &&
+      (typeof cacheOverride === "object"
+        ? (cacheOverride.enabled ?? true)
+        : cacheConfig.enabled);
 
-    const resolvedTtl = (typeof cacheOverride === "object" && cacheOverride.ttl !== undefined)
-      ? cacheOverride.ttl
-      : (cacheConfig.ttl);
+    const resolvedTtl =
+      typeof cacheOverride === "object" && cacheOverride.ttl !== undefined
+        ? cacheOverride.ttl
+        : cacheConfig.ttl;
 
-    const resolvedKeyBuilder = (typeof cacheOverride === "object" && cacheOverride.keyBuilder)
-      ? cacheOverride.keyBuilder
-      : (cacheConfig.keyBuilder || ((u, opts) => `GET:${u}:${JSON.stringify(opts.params ?? {})}`));
+    const resolvedKeyBuilder =
+      typeof cacheOverride === "object" && cacheOverride.keyBuilder
+        ? cacheOverride.keyBuilder
+        : cacheConfig.keyBuilder ||
+          ((u, opts) => `GET:${u}:${JSON.stringify(opts.params ?? {})}`);
 
     // Determine cache strategy
     // Priority: request override > global config > default
@@ -305,7 +410,10 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
     if (isGet && isCacheEnabled) {
       cacheKey = resolvedKeyBuilder(finalOptions.url, finalOptions);
 
-      if (cacheStrategy !== "network-first" && cacheStrategy !== "network-only") {
+      if (
+        cacheStrategy !== "network-first" &&
+        cacheStrategy !== "network-only"
+      ) {
         const cached = cacheMap.get(cacheKey);
         if (cached && cached.expiry > Date.now()) {
           logger.debug(`Cache hit (fresh) for ${finalOptions.url}`);
@@ -331,24 +439,35 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
         }
 
         const retryOpts: RetryConfig = {
-          attempts: typeof activeRetry === "object" && activeRetry.attempts !== undefined
-            ? activeRetry.attempts
-            : (retryConfig.attempts),
-          strategy: typeof activeRetry === "object" && activeRetry.strategy !== undefined
-            ? activeRetry.strategy
-            : (retryConfig.strategy),
-          delay: typeof activeRetry === "object" && activeRetry.delay !== undefined
-            ? activeRetry.delay
-            : (retryConfig.delay),
-          maxDelay: typeof activeRetry === "object" && activeRetry.maxDelay !== undefined
-            ? activeRetry.maxDelay
-            : (retryConfig.maxDelay),
-          statusCodes: typeof activeRetry === "object" && activeRetry.statusCodes !== undefined
-            ? activeRetry.statusCodes
-            : (retryConfig.statusCodes),
-          shouldRetry: typeof activeRetry === "object" && activeRetry.shouldRetry !== undefined
-            ? activeRetry.shouldRetry
-            : retryConfig.shouldRetry,
+          attempts:
+            typeof activeRetry === "object" &&
+            activeRetry.attempts !== undefined
+              ? activeRetry.attempts
+              : retryConfig.attempts,
+          strategy:
+            typeof activeRetry === "object" &&
+            activeRetry.strategy !== undefined
+              ? activeRetry.strategy
+              : retryConfig.strategy,
+          delay:
+            typeof activeRetry === "object" && activeRetry.delay !== undefined
+              ? activeRetry.delay
+              : retryConfig.delay,
+          maxDelay:
+            typeof activeRetry === "object" &&
+            activeRetry.maxDelay !== undefined
+              ? activeRetry.maxDelay
+              : retryConfig.maxDelay,
+          statusCodes:
+            typeof activeRetry === "object" &&
+            activeRetry.statusCodes !== undefined
+              ? activeRetry.statusCodes
+              : retryConfig.statusCodes,
+          shouldRetry:
+            typeof activeRetry === "object" &&
+            activeRetry.shouldRetry !== undefined
+              ? activeRetry.shouldRetry
+              : retryConfig.shouldRetry,
         };
 
         let attempt = 1;
@@ -363,7 +482,8 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
 
             // Check if retryable - either by status code or custom shouldRetry logic
             const status = err instanceof HttpError ? err.status : 0;
-            const isRetryableStatus = status === 0 || retryOpts.statusCodes.includes(status);
+            const isRetryableStatus =
+              status === 0 || retryOpts.statusCodes.includes(status);
 
             // If no custom shouldRetry, check status codes
             if (!retryOpts.shouldRetry && !isRetryableStatus) {
@@ -392,7 +512,9 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
             }
             waitTime = Math.min(waitTime, retryOpts.maxDelay);
 
-            logger.warn(`Attempt ${attempt} failed for ${finalOptions.url}. Retrying in ${waitTime}ms... Error: ${err.message}`);
+            logger.warn(
+              `Attempt ${attempt} failed for ${finalOptions.url}. Retrying in ${waitTime}ms... Error: ${err.message}`,
+            );
             if (waitTime > 0) {
               await sleep(waitTime);
             }
@@ -409,7 +531,7 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
       } catch (err: any) {
         if (observabilityConfig.metrics) {
           const status = err.status || 0;
-          const duration = err.durationMs || (Date.now() - startTime);
+          const duration = err.durationMs || Date.now() - startTime;
           recordMetric(status, duration, false);
         }
         throw err;
@@ -420,7 +542,9 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
     if (isGet && isDedupEnabled && dedupKey) {
       const existingPromise = dedupMap.get(dedupKey);
       if (existingPromise) {
-        logger.debug(`Deduplicating concurrent request for ${finalOptions.url}`);
+        logger.debug(
+          `Deduplicating concurrent request for ${finalOptions.url}`,
+        );
         return existingPromise;
       }
     }
@@ -430,59 +554,62 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
       let response: HttpResponse<any>;
 
       if (isGet && isCacheEnabled) {
-      const fetchFromNetwork = async () => {
-        let promise: Promise<HttpResponse<any>>;
-        promise = executeOperation();
-        return promise;
-      };
+        const fetchFromNetwork = async () => {
+          let promise: Promise<HttpResponse<any>>;
+          promise = executeOperation();
+          return promise;
+        };
 
-      const getFromCache = () => {
-        const cached = cacheMap.get(cacheKey);
-        if (!cached) return null;
+        const getFromCache = () => {
+          const cached = cacheMap.get(cacheKey);
+          if (!cached) return null;
 
-        const isFresh = cached.expiry > Date.now();
-        if (isFresh) {
-          return cloneResponse(cached.response);
-        }
+          const isFresh = cached.expiry > Date.now();
+          if (isFresh) {
+            return cloneResponse(cached.response);
+          }
 
-        // Return stale cache only if the strategy permits it
-        if (cacheStrategy === "stale-while-revalidate" || cacheStrategy === "network-first") {
-          return cloneResponse(cached.response);
-        }
+          // Return stale cache only if the strategy permits it
+          if (
+            cacheStrategy === "stale-while-revalidate" ||
+            cacheStrategy === "network-first"
+          ) {
+            return cloneResponse(cached.response);
+          }
 
-        return null;
-      };
+          return null;
+        };
 
-      const saveToCache = (res: HttpResponse<any>) => {
-        cacheMap.set(cacheKey, {
-          expiry: Date.now() + resolvedTtl,
-          response: cloneResponse(res),
+        const saveToCache = (res: HttpResponse<any>) => {
+          cacheMap.set(cacheKey, {
+            expiry: Date.now() + resolvedTtl,
+            response: cloneResponse(res),
+          });
+        };
+
+        response = await executeWithCacheStrategy(cacheStrategy, {
+          fetchFromNetwork,
+          getFromCache,
+          saveToCache,
         });
-      };
+      } else {
+        // Non-cached flow (POST/PUT/etc or cache disabled)
+        response = await executeOperation();
+      }
 
-      response = await executeWithCacheStrategy(cacheStrategy, {
-        fetchFromNetwork,
-        getFromCache,
-        saveToCache,
+      // Plugin: afterResponse hook
+      const pluginResponse = await pluginManager.executeAfterResponse(response);
+
+      // Record in history
+      requestHistory.add({
+        requestId: response.requestId,
+        url: response.response.url,
+        method,
+        status: response.status,
+        durationMs: response.durationMs,
       });
-    } else {
-      // Non-cached flow (POST/PUT/etc or cache disabled)
-      response = await executeOperation();
-    }
 
-    // Plugin: afterResponse hook
-    const pluginResponse = await pluginManager.executeAfterResponse(response);
-
-    // Record in history
-    requestHistory.add({
-      requestId: response.requestId,
-      url: response.response.url,
-      method,
-      status: response.status,
-      durationMs: response.durationMs,
-    });
-
-    return pluginResponse;
+      return pluginResponse;
     })();
 
     // Store dedup promise if enabled
@@ -499,16 +626,21 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
   }
 
   // Execution of a single native fetch call
-  async function executeSingleRequest(options: any): Promise<HttpResponse<any>> {
+  async function executeSingleRequest(
+    options: any,
+  ): Promise<HttpResponse<any>> {
     const method = options.method.toUpperCase();
     const startTime = Date.now();
 
     // 1. Trace ID / Request ID
-    const requestId = options.requestId || options.headers?.["x-request-id"] || generateRequestId();
+    const requestId =
+      options.requestId ||
+      options.headers?.["x-request-id"] ||
+      generateRequestId();
     const finalHeaders = mergeHeaders(
       (config.defaultFetchOptions?.headers as Record<string, string>) || {},
       config.defaultHeaders,
-      options.headers
+      options.headers,
     );
     if (observabilityConfig.tracing) {
       finalHeaders["x-request-id"] = requestId;
@@ -523,14 +655,19 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
 
     const activeReq = getActiveRequest(config.requestContext);
     if (forwardCookies && activeReq) {
-      const cookies = activeReq.headers?.get?.("cookie") || activeReq.headers?.cookie || "";
+      const cookies =
+        activeReq.headers?.get?.("cookie") || activeReq.headers?.cookie || "";
       if (cookies) {
         finalHeaders["cookie"] = cookies;
       }
     }
 
     // 3. Final URL (needed before ETag check)
-    const finalUrl = buildUrl(config.baseURL || "", options.url, options.params);
+    const finalUrl = buildUrl(
+      config.baseURL || "",
+      options.url,
+      options.params,
+    );
 
     // ETag support
     if (config.etag?.enabled !== false && method === "GET") {
@@ -555,7 +692,8 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
     }
 
     // 5. CSRF protection injection
-    const isCsrfRequired = options.csrf !== false &&
+    const isCsrfRequired =
+      options.csrf !== false &&
       csrfConfig.enabled &&
       csrfConfig.methods.map((m) => m.toUpperCase()).includes(method);
 
@@ -569,7 +707,10 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
     // 6. Native fetch configurations
     const fetchFn = config.fetch || globalThis.fetch;
     const controller = new AbortController();
-    const requestTimeout = options.timeout !== undefined ? options.timeout : (config.timeout ?? 30000);
+    const requestTimeout =
+      options.timeout !== undefined
+        ? options.timeout
+        : (config.timeout ?? 30000);
 
     let timeoutId: any = null;
     if (requestTimeout > 0) {
@@ -585,10 +726,11 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
     // Parse / format JSON bodies
     let finalBody = options.body;
     if (finalBody !== undefined && finalBody !== null) {
-      const isRawBody = finalBody instanceof Blob ||
-                        finalBody instanceof FormData ||
-                        finalBody instanceof URLSearchParams ||
-                        typeof finalBody === "string";
+      const isRawBody =
+        finalBody instanceof Blob ||
+        finalBody instanceof FormData ||
+        finalBody instanceof URLSearchParams ||
+        typeof finalBody === "string";
       if (!isRawBody && typeof finalBody === "object") {
         finalBody = JSON.stringify(finalBody);
         if (!finalHeaders["content-type"]) {
@@ -614,23 +756,32 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
     } catch (err: any) {
       const durationMs = Date.now() - startTime;
       if (err.name === "AbortError" || controller.signal.aborted) {
-        const timeoutErr = new TimeoutError(`Request timeout after ${requestTimeout}ms`, {
-          requestId,
-          durationMs,
-          url: finalUrl,
-          headers: finalHeaders,
-        });
+        const timeoutErr = new TimeoutError(
+          `Request timeout after ${requestTimeout}ms`,
+          {
+            requestId,
+            durationMs,
+            url: finalUrl,
+            headers: finalHeaders,
+          },
+        );
         timeoutErr.options = options;
-        logger.error(`✕ Timeout ${method} ${finalUrl} after ${durationMs}ms`, timeoutErr);
+        logger.error(
+          `✕ Timeout ${method} ${finalUrl} after ${durationMs}ms`,
+          timeoutErr,
+        );
         throw timeoutErr;
       } else {
-        const networkErr = new NetworkError(err.message || "Network request failed", {
-          requestId,
-          durationMs,
-          url: finalUrl,
-          headers: finalHeaders,
-          originalError: err,
-        });
+        const networkErr = new NetworkError(
+          err.message || "Network request failed",
+          {
+            requestId,
+            durationMs,
+            url: finalUrl,
+            headers: finalHeaders,
+            originalError: err,
+          },
+        );
         networkErr.options = options;
         logger.error(`✕ Network Error ${method} ${finalUrl}`, networkErr);
         throw networkErr;
@@ -664,7 +815,9 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
         }
       }
 
-      logger.info(`← HTTP 304 (cached) ${finalUrl} in ${durationMs}ms`, { requestId });
+      logger.info(`← HTTP 304 (cached) ${finalUrl} in ${durationMs}ms`, {
+        requestId,
+      });
       return httpResponse;
     }
 
@@ -684,7 +837,10 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
             url: finalUrl,
             options,
           });
-          logger.error(`✕ Validation Error ${method} ${finalUrl}`, validationErr);
+          logger.error(
+            `✕ Validation Error ${method} ${finalUrl}`,
+            validationErr,
+          );
           throw validationErr;
         }
       }
@@ -710,14 +866,20 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
       // Apply response transformers
       let transformedData = parsedData;
       if (config.responseTransformer) {
-        transformedData = config.responseTransformer(transformedData, httpResponse);
+        transformedData = config.responseTransformer(
+          transformedData,
+          httpResponse,
+        );
       }
       if (options.transformer) {
         transformedData = options.transformer(transformedData, httpResponse);
       }
       httpResponse.data = transformedData;
 
-      logger.info(`← HTTP ${rawResponse.status} ${finalUrl} in ${durationMs}ms`, { requestId });
+      logger.info(
+        `← HTTP ${rawResponse.status} ${finalUrl} in ${durationMs}ms`,
+        { requestId },
+      );
       return httpResponse;
     } else {
       try {
@@ -726,24 +888,33 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
         // Fallback if fails to parse
       }
 
-      const httpErr = new HttpError(`Request failed with status ${rawResponse.status}`, {
-        status: rawResponse.status,
-        statusText: rawResponse.statusText,
-        headers: responseHeaders,
-        data: parsedData,
-        requestId,
-        durationMs,
-        url: finalUrl,
-        options,
-      });
+      const httpErr = new HttpError(
+        `Request failed with status ${rawResponse.status}`,
+        {
+          status: rawResponse.status,
+          statusText: rawResponse.statusText,
+          headers: responseHeaders,
+          data: parsedData,
+          requestId,
+          durationMs,
+          url: finalUrl,
+          options,
+        },
+      );
 
-      logger.error(`✕ HTTP ${rawResponse.status} ${finalUrl} in ${durationMs}ms`, httpErr);
+      logger.error(
+        `✕ HTTP ${rawResponse.status} ${finalUrl} in ${durationMs}ms`,
+        httpErr,
+      );
       throw httpErr;
     }
   }
 
   // Core Request function with Interceptor pipeline chained
-  async function request<T = any>(url: string, options: any): Promise<HttpResponse<T>> {
+  async function request<T = any>(
+    url: string,
+    options: any,
+  ): Promise<HttpResponse<T>> {
     let interceptorOptions = {
       url,
       ...options,
@@ -783,9 +954,14 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
 
     // Run request validation if provided
     if (config.requestValidator) {
-      const isValid = await config.requestValidator(resolvedOptions.url, resolvedOptions);
+      const isValid = await config.requestValidator(
+        resolvedOptions.url,
+        resolvedOptions,
+      );
       if (!isValid) {
-        throw new Error(`Request validation failed for URL: ${resolvedOptions.url}`);
+        throw new Error(
+          `Request validation failed for URL: ${resolvedOptions.url}`,
+        );
       }
     }
 
@@ -798,32 +974,77 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
     let responsePromise: Promise<HttpResponse<any>>;
 
     try {
+      const requestStartTime = Date.now();
       responsePromise = circuitBreaker.execute(async () => {
         return requestPool.execute(async () => {
-          // Call global hooks
+          // Call global onRequest hook with rich context
           if (config.hooks?.onRequest) {
-            await config.hooks.onRequest(resolvedOptions.url, resolvedOptions);
+            const shouldContinue = await config.hooks.onRequest({
+              url: resolvedOptions.url,
+              method: resolvedOptions.method,
+              options: resolvedOptions,
+              requestId,
+              timestamp: requestStartTime,
+            });
+            // If hook returns false, abort the request
+            if (shouldContinue === false) {
+              throw new Error("Request aborted by onRequest hook");
+            }
           }
 
           try {
-            const response = await performRequestWithAllFeatures(resolvedOptions);
+            const response =
+              await performRequestWithAllFeatures(resolvedOptions);
+            const durationMs = Date.now() - requestStartTime;
 
-            // Call global onSuccess hook
+            // Call global onSuccess hook with full context
             if (config.hooks?.onSuccess) {
-              await config.hooks.onSuccess(response);
+              await config.hooks.onSuccess({
+                url: resolvedOptions.url,
+                method: resolvedOptions.method,
+                status: response.status,
+                response,
+                durationMs,
+                requestId,
+                isCached: false, // Will be updated if from cache
+                timestamp: Date.now(),
+              });
             }
 
             return response;
           } catch (error) {
-            // Call global onError hook
+            const durationMs = Date.now() - requestStartTime;
+
+            // Call global onError hook with full context
             if (config.hooks?.onError) {
-              await config.hooks.onError(error);
+              const httpError = error instanceof HttpError ? error : null;
+              await config.hooks.onError({
+                url: resolvedOptions.url,
+                method: resolvedOptions.method,
+                error,
+                status: httpError?.status,
+                attemptNumber: 1,
+                durationMs,
+                requestId,
+                willRetry: false,
+                timestamp: Date.now(),
+              });
             }
             throw error;
           } finally {
-            // Call global onFinally hook
+            const totalDurationMs = Date.now() - requestStartTime;
+
+            // Call global onFinally hook with summary context
             if (config.hooks?.onFinally) {
-              await config.hooks.onFinally();
+              await config.hooks.onFinally({
+                url: resolvedOptions.url,
+                method: resolvedOptions.method,
+                success: true, // Note: simplified - in full impl would track actual result
+                totalAttempts: 1,
+                totalDurationMs,
+                requestId,
+                timestamp: Date.now(),
+              });
             }
 
             abortControllers.delete(requestId);
@@ -844,7 +1065,7 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
             return handler.onRejected(err);
           }
           return Promise.reject(err);
-        }
+        },
       );
     });
 
@@ -859,49 +1080,83 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
       response: responseInterceptors,
     },
 
-    get<T = any>(url: string, options?: HttpRequestOptions): Promise<HttpResponse<T>> {
+    get<T = any>(
+      url: string,
+      options?: HttpRequestOptions,
+    ): Promise<HttpResponse<T>> {
       return request<T>(url, { ...options, method: "GET" });
     },
 
-    post(url: string, body?: any, options?: HttpRequestOptions): Promise<HttpResponse<any>> {
+    post(
+      url: string,
+      body?: any,
+      options?: HttpRequestOptions,
+    ): Promise<HttpResponse<any>> {
       return request(url, { ...options, method: "POST", body });
     },
 
-    put(url: string, body?: any, options?: HttpRequestOptions): Promise<HttpResponse<any>> {
+    put(
+      url: string,
+      body?: any,
+      options?: HttpRequestOptions,
+    ): Promise<HttpResponse<any>> {
       return request(url, { ...options, method: "PUT", body });
     },
 
-    patch(url: string, body?: any, options?: HttpRequestOptions): Promise<HttpResponse<any>> {
+    patch(
+      url: string,
+      body?: any,
+      options?: HttpRequestOptions,
+    ): Promise<HttpResponse<any>> {
       return request(url, { ...options, method: "PATCH", body });
     },
 
-    delete(url: string, bodyOrOptions?: any, options?: HttpRequestOptions): Promise<HttpResponse<any>> {
+    delete(
+      url: string,
+      bodyOrOptions?: any,
+      options?: HttpRequestOptions,
+    ): Promise<HttpResponse<any>> {
       // Intelligently check if second argument is HttpRequestOptions or Request Body
-      const isOptions = bodyOrOptions && (
-        "params" in bodyOrOptions ||
-        "headers" in bodyOrOptions ||
-        "cache" in bodyOrOptions ||
-        "retry" in bodyOrOptions ||
-        "timeout" in bodyOrOptions ||
-        "deduplicate" in bodyOrOptions ||
-        "signal" in bodyOrOptions
-      );
+      const isOptions =
+        bodyOrOptions &&
+        ("params" in bodyOrOptions ||
+          "headers" in bodyOrOptions ||
+          "cache" in bodyOrOptions ||
+          "retry" in bodyOrOptions ||
+          "timeout" in bodyOrOptions ||
+          "deduplicate" in bodyOrOptions ||
+          "signal" in bodyOrOptions);
 
       if (isOptions) {
         return request(url, { ...bodyOrOptions, method: "DELETE" });
       } else {
-        return request(url, { ...options, method: "DELETE", body: bodyOrOptions });
+        return request(url, {
+          ...options,
+          method: "DELETE",
+          body: bodyOrOptions,
+        });
       }
     },
 
-    customFetch<T = any>(url: string, options?: RequestInit & HttpRequestOptions): Promise<HttpResponse<T>> {
+    customFetch<T = any>(
+      url: string,
+      options?: RequestInit & HttpRequestOptions,
+    ): Promise<HttpResponse<T>> {
       const method = options?.method || "GET";
       return request<T>(url, { ...options, method });
     },
 
-    async batchRequests<T extends ReadonlyArray<() => Promise<HttpResponse<any>>>>(
-      requests: T
-    ): Promise<{ -readonly [K in keyof T]: T[K] extends () => Promise<HttpResponse<infer R>> ? HttpResponse<R> : any }> {
+    async batchRequests<
+      T extends ReadonlyArray<() => Promise<HttpResponse<any>>>,
+    >(
+      requests: T,
+    ): Promise<{
+      -readonly [K in keyof T]: T[K] extends () => Promise<
+        HttpResponse<infer R>
+      >
+        ? HttpResponse<R>
+        : any;
+    }> {
       const promises = requests.map((req) => req());
       const results = await Promise.all(promises);
       return results as any;
@@ -920,10 +1175,17 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
     },
 
     getMetrics(): HttpMetrics {
-      return { ...metrics, durations: [...metrics.durations], statusCodes: { ...metrics.statusCodes } };
+      return {
+        ...metrics,
+        durations: [...metrics.durations],
+        statusCodes: { ...metrics.statusCodes },
+      };
     },
 
-    async withRequest<R>(requestContext: any, callback: () => Promise<R> | R): Promise<R> {
+    async withRequest<R>(
+      requestContext: any,
+      callback: () => Promise<R> | R,
+    ): Promise<R> {
       if (requestContextStore) {
         return requestContextStore.run(requestContext, callback);
       }
@@ -932,7 +1194,7 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
 
     async poll<T = any>(
       url: string,
-      options?: HttpRequestOptions & { polling?: any }
+      options?: HttpRequestOptions & { polling?: any },
     ): Promise<HttpResponse<T>> {
       const pollingOptions = options?.polling || { interval: 5000 };
       const requestId = generateRequestId();
@@ -940,7 +1202,7 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
       return pollingManager.poll<HttpResponse<T>>(
         async () => this.get<T>(url, options),
         pollingOptions,
-        requestId
+        requestId,
       );
     },
 

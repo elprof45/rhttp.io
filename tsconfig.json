@@ -32,6 +32,6 @@
     "resolveJsonModule": true,
     "isolatedModules": true
   },
-  "include": ["src"],
+  "include": ["src", "CREDENTIALS_GUIDE.ts"],
   "exclude": ["node_modules", "dist", "*.test.ts"]
 }

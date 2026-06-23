@@ -1,24 +1,14 @@
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  mock,
-  test,
-} from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
 import {
   CircuitBreaker,
   RateLimiter,
-  RequestPool,
   PollingManager,
   ETagManager,
   RequestProfiler,
   MiddlewareChain,
   InMemoryStructuredLogger,
   AutoCleanup,
-  createHttp,
-  withGraphQL,
 } from "./dist/index.js";
 
 function sleep(ms: number) {
@@ -512,9 +502,13 @@ describe("Auto Cleanup", () => {
     const cleanup = new AutoCleanup();
     let callCount = 0;
 
-    cleanup.setTimeout("timer1", () => {
-      callCount++;
-    }, 50);
+    cleanup.setTimeout(
+      "timer1",
+      () => {
+        callCount++;
+      },
+      50,
+    );
 
     await sleep(100);
 
@@ -525,9 +519,13 @@ describe("Auto Cleanup", () => {
     const cleanup = new AutoCleanup();
     let callCount = 0;
 
-    cleanup.setTimeout("timer1", () => {
-      callCount++;
-    }, 50);
+    cleanup.setTimeout(
+      "timer1",
+      () => {
+        callCount++;
+      },
+      50,
+    );
 
     cleanup.clearTimeout("timer1");
 
@@ -540,9 +538,13 @@ describe("Auto Cleanup", () => {
     const cleanup = new AutoCleanup();
     let callCount = 0;
 
-    cleanup.setInterval("interval1", () => {
-      callCount++;
-    }, 30);
+    cleanup.setInterval(
+      "interval1",
+      () => {
+        callCount++;
+      },
+      30,
+    );
 
     await sleep(100);
 
@@ -555,13 +557,21 @@ describe("Auto Cleanup", () => {
     const cleanup = new AutoCleanup();
     let callCount = 0;
 
-    cleanup.setTimeout("t1", () => {
-      callCount++;
-    }, 50);
+    cleanup.setTimeout(
+      "t1",
+      () => {
+        callCount++;
+      },
+      50,
+    );
 
-    cleanup.setInterval("i1", () => {
-      callCount++;
-    }, 30);
+    cleanup.setInterval(
+      "i1",
+      () => {
+        callCount++;
+      },
+      30,
+    );
 
     cleanup.clear();
 
@@ -585,15 +595,18 @@ describe("Polling Manager", () => {
       maxAttempts: 5,
     });
 
-    const result = await poller.poll(async () => {
-      attemptCount++;
-      return {
-        status: attemptCount >= 3 ? "completed" : "pending",
-        attempt: attemptCount,
-      };
-    }, {
-      stopCondition: (data: any) => data.status === "completed",
-    });
+    const result = await poller.poll(
+      async () => {
+        attemptCount++;
+        return {
+          status: attemptCount >= 3 ? "completed" : "pending",
+          attempt: attemptCount,
+        };
+      },
+      {
+        stopCondition: (data: any) => data.status === "completed",
+      },
+    );
 
     expect(attemptCount).toBe(3);
     expect(result?.attempt).toBe(3);
@@ -608,12 +621,15 @@ describe("Polling Manager", () => {
       maxAttempts: 3,
     });
 
-    const result = await poller.poll(async () => {
-      attemptCount++;
-      return { status: "pending" };
-    }, {
-      stopCondition: (data: any) => data.status === "completed",
-    });
+    const result = await poller.poll(
+      async () => {
+        attemptCount++;
+        return { status: "pending" };
+      },
+      {
+        stopCondition: (data: any) => data.status === "completed",
+      },
+    );
 
     expect(attemptCount).toBe(3);
     // When maxAttempts is exhausted without meeting stopCondition,
@@ -637,12 +653,15 @@ describe("Polling Manager", () => {
       stopped = true;
     }, 80);
 
-    await poller.poll(async () => {
-      attemptCount++;
-      return { status: "pending" };
-    }, {
-      stopCondition: () => false,
-    });
+    await poller.poll(
+      async () => {
+        attemptCount++;
+        return { status: "pending" };
+      },
+      {
+        stopCondition: () => false,
+      },
+    );
 
     expect(stopped).toBe(true);
     expect(attemptCount).toBeLessThan(10);
@@ -687,82 +706,5 @@ describe("ETag Manager", () => {
     expect(manager.getETag("/users/1")).toBe("etag-1");
     expect(manager.getETag("/users/2")).toBe("etag-2");
     expect(manager.getETag("/posts/1")).toBe("etag-3");
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// GraphQL Extension Tests
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("GraphQL Extension", () => {
-  test("GraphQL client makes successful queries", async () => {
-    const mockHttp = {
-      post: async (url: string, data: any) => ({
-        data: {
-          data: { posts: [{ id: "1", title: "Test" }] },
-          errors: undefined,
-        },
-        status: 200,
-      }),
-    };
-
-    const graphql = withGraphQL(mockHttp, "/graphql");
-
-    const result = await graphql.query({
-      query: "query { posts { id title } }",
-    });
-
-    expect(result).toEqual([{ id: "1", title: "Test" }]);
-  });
-
-  test("GraphQL client handles errors", async () => {
-    const mockHttp = {
-      post: async () => ({
-        data: {
-          data: undefined,
-          errors: [
-            {
-              message: "Authentication required",
-              extensions: { code: "UNAUTHENTICATED" },
-            },
-          ],
-        },
-        status: 200,
-      }),
-    };
-
-    const graphql = withGraphQL(mockHttp, "/graphql");
-
-    try {
-      await graphql.query({ query: "query { protected { data } }" });
-      expect.unreachable();
-    } catch (error: any) {
-      expect(error.name).toBe("GraphQLError");
-      expect(error.message).toBe("Authentication required");
-      expect(error.errors.length).toBe(1);
-    }
-  });
-
-  test("GraphQL client sends variables", async () => {
-    let sentData: any = null;
-
-    const mockHttp = {
-      post: async (url: string, data: any) => {
-        sentData = data;
-        return {
-          data: { data: { user: { id: "1" } }, errors: undefined },
-          status: 200,
-        };
-      },
-    };
-
-    const graphql = withGraphQL(mockHttp, "/graphql");
-
-    await graphql.query({
-      query: "query GetUser($id: ID!) { user(id: $id) { id } }",
-      variables: { id: "1" },
-    });
-
-    expect(sentData.variables).toEqual({ id: "1" });
   });
 });

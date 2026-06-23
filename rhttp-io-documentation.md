@@ -1,6 +1,28 @@
+<div align="center">
+
+<div align="center">
+  <img src="./public/assets/rhttp-cover.png" alt="rhttp.io cover" width="100%" />
+  <br /><br />
+  <!-- <img src="./public/assets/rhttp-logo.png" alt="rhttp.io logo" width="220" /> -->
+</div>
+
 # rhttp.io
 
-**A universal, type-safe HTTP client for browsers, Node.js, and Edge runtimes — with caching, retries, a circuit breaker, JWT auth, CSRF protection, and a Socket.io realtime client built in.**
+### The HTTP Client for Modern Applications
+
+**Type-safe • Secure • High Performance • Full-stack Ready  
+ Universal HTTP client. Caching, retries, circuit breaker, JWT, CSRF, Socket.io.  
+ Isomorphic for browsers, Node.js, Edge.  
+ From Browser to Server, from REST to Realtime.**
+
+  <br />
+
+[![npm version](https://img.shields.io/npm/v/rhttp.io?color=blue&style=flat-square)](https://www.npmjs.com/package/rhttp.io)
+[![license](https://img.shields.io/npm/l/rhttp.io?style=flat-square)](LICENSE)
+[![typescript](https://img.shields.io/badge/TypeScript-Ready-blue?style=flat-square)](https://www.typescriptlang.org/)
+[![node](https://img.shields.io/badge/Node-%3E%3D18-green?style=flat-square)](https://nodejs.org/)
+
+</div>
 
 rhttp.io exists to replace the pile of small libraries (Axios, a retry wrapper, a cache layer, a CSRF helper, a Socket.io wrapper) that most production apps end up assembling by hand. Instead of gluing those together yourself, you configure one client and get a consistent request pipeline everywhere your code runs: in the browser, on a Node.js server, or in an Edge function.
 
@@ -27,6 +49,7 @@ rhttp.io exists to replace the pile of small libraries (Axios, a retry wrapper, 
 ## Table of Contents
 
 - [rhttp.io](#rhttpio)
+  - [The HTTP Client for Modern Applications](#the-http-client-for-modern-applications)
   - [✨ Features at a Glance](#-features-at-a-glance)
   - [Table of Contents](#table-of-contents)
   - [1. Getting Started](#1-getting-started)

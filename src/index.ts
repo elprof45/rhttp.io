@@ -42,13 +42,8 @@ export {
   type LogEntry,
 } from "./observability";
 
-// Optimization: Compression and HTTP/2 Push
-export {
-  createCompressionMiddleware,
-  createHttp2PushMiddleware,
-  type CompressionConfig,
-  type Http2PushConfig,
-} from "./optimization";
+// Note: Compression and HTTP/2 Push previously from optimization.ts have been removed
+// For compression support, use createCompressionMiddleware from extensions.ts
 
 // Advanced features and extensions
 export {

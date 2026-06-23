@@ -106,7 +106,7 @@ export async function crossOriginWithCredentials() {
   } catch (error) {
     if (error.status === 0 || error.statusText === "Network Error") {
       console.error(
-        "CORS error! Server must set Access-Control-Allow-Credentials: true"
+        "CORS error! Server must set Access-Control-Allow-Credentials: true",
       );
     }
   }
@@ -127,20 +127,18 @@ export async function exampleSSRWithCookies() {
   });
 
   // In a server function:
-  export const getUser = createServerFn({ method: "GET" }).handler(
-    async () => {
-      // The incoming request from client has:
-      // Cookie: session_id=abc123
+  export const getUser = createServerFn({ method: "GET" }).handler(async () => {
+    // The incoming request from client has:
+    // Cookie: session_id=abc123
 
-      // Our interceptor automatically:
-      // 1. Reads the session_id from request.headers.get("cookie")
-      // 2. Adds it to outgoing request to internal API
-      // 3. Internal API validates the session
+    // Our interceptor automatically:
+    // 1. Reads the session_id from request.headers.get("cookie")
+    // 2. Adds it to outgoing request to internal API
+    // 3. Internal API validates the session
 
-      const response = await http.get("/user");
-      return response.data;
-    }
-  );
+    const response = await http.get("/user");
+    return response.data;
+  });
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -183,7 +181,7 @@ export async function tokenBasedAuth() {
 
 export const CREDENTIALS_COMPARISON = {
   // Include for same-origin requests
-  "include": {
+  include: {
     description: "Send credentials for same-origin requests",
     safeCookie: true,
     autoInclude: true,
@@ -191,7 +189,7 @@ export const CREDENTIALS_COMPARISON = {
   },
 
   // Omit for all requests
-  "omit": {
+  omit: {
     description: "Never send credentials",
     safeCookie: false,
     autoInclude: false,
@@ -216,7 +214,7 @@ export async function properHeaderMerging() {
   const badFetch = async () => {
     const response = await fetch("/api/data", {
       headers: {
-        "Authorization": "Bearer token123",
+        Authorization: "Bearer token123",
         // Content-Type is LOST!
       },
       // default headers not included
@@ -235,7 +233,7 @@ export async function properHeaderMerging() {
   // When you make a request with additional headers:
   const response = await http.get("/data", {
     headers: {
-      "Authorization": "Bearer token123",
+      Authorization: "Bearer token123",
       // Merged with defaults:
       // - Content-Type: application/json (from default)
       // - X-Custom-Header: value (from default)
@@ -269,5 +267,7 @@ export async function credentialsWithCsrf() {
   // 3. Server validates: session cookie + CSRF token
   // 4. POST request includes both ✅
 
-  await http.post("/data", { /* ... */ });
+  await http.post("/data", {
+    /* ... */
+  });
 }

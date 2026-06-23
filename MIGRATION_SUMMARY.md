@@ -49,6 +49,7 @@ console.log(data); // Résultat réel ✅
 ```
 
 **Changements**:
+
 - Exécution immédiate (pas de délai initial)
 - Retourne le dernier résultat (pas undefined)
 - Promise correctement résolue
@@ -67,6 +68,7 @@ const http = createServerHttp({ requestContext: getRequest });
 ```
 
 **Changements**:
+
 - `createHttp()` passe requestContext aux interceptors
 - Fonctionnement cohérent partout
 
@@ -77,17 +79,18 @@ const http = createServerHttp({ requestContext: getRequest });
 ```typescript
 // ❌ AVANT - localStorage vulnerable à XSS
 createClientHttp({
-  auth: { getToken: () => localStorage.getItem("token") }
+  auth: { getToken: () => localStorage.getItem("token") },
 });
 
 // ✅ APRÈS - 4 options sécurisées
-createClientHttp({ tokenStorage: "hybrid" });     // Memory + SessionStorage
-createClientHttp({ tokenStorage: "memory" });     // Memory seulement
-createClientHttp({ tokenStorage: "session" });    // SessionStorage
-createClientHttp({ tokenStorage: "indexeddb" });  // IndexedDB
+createClientHttp({ tokenStorage: "hybrid" }); // Memory + SessionStorage
+createClientHttp({ tokenStorage: "memory" }); // Memory seulement
+createClientHttp({ tokenStorage: "session" }); // SessionStorage
+createClientHttp({ tokenStorage: "indexeddb" }); // IndexedDB
 ```
 
 **Sécurité**:
+
 - ✅ HttpOnly Cookies (recommandé - set par serveur)
 - ✅ Hybrid Storage (défaut - Memory + SessionStorage)
 - ❌ localStorage (déprécié - XSS vulnerable)
@@ -104,7 +107,9 @@ import { createObservabilityMiddleware } from "rhttp.io";
 const obs = createObservabilityMiddleware({
   enableLogging: true,
   enableMetrics: true,
-  onTrace: (trace) => { /* ... */ },
+  onTrace: (trace) => {
+    /* ... */
+  },
 });
 
 http.use(obs);
@@ -120,6 +125,7 @@ const metrics = obs.getMetrics();
 ```
 
 **Métriques**:
+
 - p50, p95, p99 durations ✅
 - Cache hit rates ✅
 - Deduplication rates ✅
@@ -140,17 +146,20 @@ import {
 http.use(createCompressionMiddleware({ minSize: 512 }));
 
 // HTTP/2 Server Push
-http.use(createHttp2PushMiddleware({
-  cacheManifest: {
-    "/api/user": ["/api/user/settings"]
-  }
-}));
+http.use(
+  createHttp2PushMiddleware({
+    cacheManifest: {
+      "/api/user": ["/api/user/settings"],
+    },
+  }),
+);
 
 // Service Worker (offline)
 await setupServiceWorker(http);
 ```
 
 **Performance**:
+
 - -30-50% bandwidth (compression) ✅
 - -20-40% load time (HTTP/2) ✅
 - Offline support (Service Worker) ✅
@@ -165,13 +174,14 @@ createClientHttp({
   // Auto: envoie cookies, headers fusionnés
 });
 
-// ✅ Server - credentials: "omit" 
+// ✅ Server - credentials: "omit"
 createServerHttp({
   // Auto: pas de cookies, mais cookies forwardés via interceptor
 });
 ```
 
 **Avantages**:
+
 - Configuration cohérente ✅
 - Headers correctement fusionnés ✅
 - Cookies forwardés correctement en SSR ✅
@@ -180,16 +190,16 @@ createServerHttp({
 
 ## 📊 Comparaison Avant/Après
 
-| Feature | Avant | Après | Impact |
-|---------|-------|-------|--------|
-| **poll()** | Bloque, undefined | Immédiat, résultat | ✅ x2 plus rapide |
-| **Tokens** | localStorage | Hybrid (sûr) | ✅ XSS protection |
-| **requestContext** | Server seulement | Partout | ✅ Universel |
-| **Observabilité** | Basique | Avancée (p95/p99) | ✅ Meilleur debugging |
-| **Compression** | Manquant | Intégré | ✅ -40% bandwidth |
-| **HTTP/2** | Manquant | Intégré | ✅ -30% load time |
-| **Service Worker** | Manquant | Intégré | ✅ Offline support |
-| **Credentials** | Incohérent | Harmonisé | ✅ Moins bugs |
+| Feature            | Avant             | Après              | Impact                |
+| ------------------ | ----------------- | ------------------ | --------------------- |
+| **poll()**         | Bloque, undefined | Immédiat, résultat | ✅ x2 plus rapide     |
+| **Tokens**         | localStorage      | Hybrid (sûr)       | ✅ XSS protection     |
+| **requestContext** | Server seulement  | Partout            | ✅ Universel          |
+| **Observabilité**  | Basique           | Avancée (p95/p99)  | ✅ Meilleur debugging |
+| **Compression**    | Manquant          | Intégré            | ✅ -40% bandwidth     |
+| **HTTP/2**         | Manquant          | Intégré            | ✅ -30% load time     |
+| **Service Worker** | Manquant          | Intégré            | ✅ Offline support    |
+| **Credentials**    | Incohérent        | Harmonisé          | ✅ Moins bugs         |
 
 ---
 
@@ -218,24 +228,28 @@ Both:
 ## 📝 Checklist de Migration
 
 ### Critical (Must Do)
+
 - [ ] Read IMPROVEMENTS_GUIDE.md
 - [ ] Update `http.poll()` usage if any
 - [ ] Test polling with new implementation
 - [ ] Verify token storage is working
 
 ### Important (Should Do)
+
 - [ ] Review CREDENTIALS_GUIDE.ts
 - [ ] Check requestContext setup (now works everywhere)
 - [ ] Test client/server credentials handling
 - [ ] Run full test suite
 
 ### Optional (Nice to Have)
+
 - [ ] Add observability middleware
 - [ ] Enable compression for large payloads
 - [ ] Setup HTTP/2 push
 - [ ] Implement Service Worker for offline
 
 ### Testing
+
 ```bash
 # Run tests
 npm test
@@ -251,15 +265,15 @@ npm run test:migration
 
 ## 📚 Documentation Files
 
-| File | Purpose | Read When |
-|------|---------|-----------|
-| **IMPROVEMENTS_GUIDE.md** | Complete feature guide | First - overview |
-| **CHANGELOG_IMPROVEMENTS.md** | Detailed changelog | When migrating |
-| **QUICK_START_PATTERNS.ts** | Ready-to-use patterns | When implementing |
-| **CREDENTIALS_GUIDE.ts** | Auth patterns | Setting up auth |
-| **src/token-storage.ts** | Token storage options | Choosing storage |
-| **src/observability.ts** | Observability API | Adding monitoring |
-| **src/optimization.ts** | Performance features | Optimizing performance |
+| File                          | Purpose                | Read When              |
+| ----------------------------- | ---------------------- | ---------------------- |
+| **IMPROVEMENTS_GUIDE.md**     | Complete feature guide | First - overview       |
+| **CHANGELOG_IMPROVEMENTS.md** | Detailed changelog     | When migrating         |
+| **QUICK_START_PATTERNS.ts**   | Ready-to-use patterns  | When implementing      |
+| **CREDENTIALS_GUIDE.ts**      | Auth patterns          | Setting up auth        |
+| **src/token-storage.ts**      | Token storage options  | Choosing storage       |
+| **src/observability.ts**      | Observability API      | Adding monitoring      |
+| **src/optimization.ts**       | Performance features   | Optimizing performance |
 
 ---
 
@@ -288,27 +302,35 @@ Configuration:
 ## ❓ FAQ
 
 ### Q: Est-ce une breaking change?
+
 **A**: Non! Totalement rétro-compatible. Les anciens codes fonctionnent toujours.
 
 ### Q: Dois-je migrer immédiatement?
+
 **A**: Pas obligatoire, mais recommandé pour:
+
 - Correction du bug poll()
 - Sécurité des tokens
 - Meilleure observabilité
 
 ### Q: Quel storage de token utiliser?
-**A**: 
+
+**A**:
+
 1. **Best**: HttpOnly cookies (serveur)
 2. **Good**: Hybrid storage (mémoire + sessionStorage)
 3. **OK**: Memory storage
 4. **Avoid**: localStorage
 
 ### Q: Quand utiliser observabilité?
+
 **A**:
+
 - Development: Toujours (debug)
 - Production: Activé pour metrics seulement
 
 ### Q: Comment désactiver les nouvelles features?
+
 **A**: C'est optionnel! Utilisez uniquement ce que vous voulez.
 
 ---
@@ -327,6 +349,7 @@ Configuration:
 ## 📞 Support
 
 Besoin d'aide?
+
 1. Vérifiez IMPROVEMENTS_GUIDE.md
 2. Consultez QUICK_START_PATTERNS.ts
 3. Lisez src/CREDENTIALS_GUIDE.ts

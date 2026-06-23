@@ -7,14 +7,28 @@ import {
 } from "./token-storage";
 
 /**
- * Creates a client-side HTTP client instance with secure defaults.
+ * Creates a client-side HTTP client instance with secure defaults for browsers.
  *
  * Features:
  * - Automatically includes credentials (cookies) in requests
- * - Secure token storage (HttpOnly cookies recommended, fallback to Hybrid storage)
- * - Pre-configured CSRF protection
- * - Pre-configured for browser environments
- * - Automatic observability and compression
+ * - Secure token storage with hybrid mode (memory + sessionStorage)
+ * - Pre-configured CSRF protection (enabled by default)
+ * - Smart client-side caching with pattern-based invalidation
+ * - Request deduplication within cache window
+ * - ETag support for bandwidth optimization
+ *
+ * Token Management (Priority Order):
+ * 1. HttpOnly cookies (Set-Cookie from server) ← RECOMMENDED
+ *    Automatically included via fetch credentials: 'include'
+ * 2. Token storage (hybrid by default: memory + sessionStorage)
+ *    Survives page navigation but cleared on tab close
+ * 3. Custom getToken() callback
+ *    For complex refresh or rotation logic
+ *
+ * Cookie Forwarding:
+ * - HttpOnly cookies: Automatically sent by fetch (no code needed)
+ * - Session cookies: Sent with credentials: 'include'
+ * - Custom manipulation: Use options.headers in requests
  *
  * Usage:
  * ```typescript
@@ -22,24 +36,43 @@ import {
  *
  * const http = createClientHttp({
  *   baseURL: "https://api.example.com",
- *   tokenStorage: "hybrid", // hybrid, memory, session, indexeddb
+ *   tokenStorage: "hybrid",
+ *   smartCaching: {
+ *     enabled: true,
+ *     patterns: {
+ *       '/api/users': { ttl: 60000, invalidateOn: ['POST', 'PUT', 'DELETE'] },
+ *       '/api/posts': { ttl: 30000, invalidateOn: ['POST', 'PUT'] },
+ *     }
+ *   }
  * });
  *
- * // Automatically includes cookies and secure token
- * const response = await http.get("/protected-resource");
+ * // Token automatically read from storage
+ * const { data: profile } = await http.get("/me");
+ *
+ * // Cache invalidated on POST
+ * const { data: user } = await http.post("/users", {
+ *   name: "John",
+ *   email: "john@example.com"
+ * });
+ *
+ * // Smart cache: still cached, not refetched
+ * const { data: sameProfile } = await http.get("/me");
  * ```
  *
- * Token Management (SECURE):
- * - RECOMMENDED: Use HttpOnly cookies (set by server on login)
- * - FALLBACK: Hybrid storage (memory + sessionStorage)
- * - DO NOT: Use localStorage for sensitive tokens (XSS vulnerable)
- *
  * CSRF Protection:
- * - CSRF is enabled by default for Client Components
- * - Tokens are fetched from /api/csrf and cached
+ * - Enabled by default for client-side safety
+ * - Tokens fetched from /api/csrf endpoint
+ * - Cached and reused for subsequent requests
  * - Can be customized or disabled via config.csrf
+ *
+ * Security Best Practices:
+ * - ✅ RECOMMENDED: Use HttpOnly cookies (immune to XSS)
+ * - ✅ RECOMMENDED: Hybrid storage (memory + sessionStorage)
+ * - ✅ RECOMMENDED: Token refresh via auth interceptor
+ * - ❌ AVOID: localStorage for sensitive tokens (XSS vulnerable)
+ * - ❌ AVOID: Storing tokens in URL/query params
+ * - ❌ AVOID: Disabling CSRF in production
  */
-
 export interface CreateClientHttpConfig extends CreateHttpConfig {
   /**
    * Token storage strategy

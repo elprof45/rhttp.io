@@ -125,28 +125,89 @@ export interface ObservabilityConfig {
 
 export interface AuthConfig {
   /**
-   * Propage automatiquement les cookies de la requête entrante.
-   * Principalement pour SSR. Fonctionne avec auto-detection TanStack Start ou requestContext explicite.
+   * Forward cookies from incoming request to outgoing API calls (SSR only).
+   *
+   * Cookies are forwarded via priority order:
+   * 1. requestContext (TanStack Start recommended, auto-detected)
+   * 2. auth.forwardCookies interceptor (fallback)
+   * 3. Explicit cookie header manipulation (manual)
+   *
+   * IMPORTANT: HttpOnly cookies set by server (via Set-Cookie) are automatically
+   * included in fetch() with credentials: 'include'. This option handles forwarding
+   * cookies from the incoming SSR request to outgoing API calls, which is separate.
+   *
+   * @example
+   * ```typescript
+   * // In TanStack Start or Next.js (auto-detected)
+   * const http = createServerHttp({ auth: { forwardCookies: true } });
+   * // Cookies from request context automatically forwarded
+   *
+   * // In custom SSR (manual)
+   * const http = createServerHttp({
+   *   auth: { forwardCookies: true },
+   *   requestContext: () => getActiveRequest(),
+   * });
+   * ```
    */
   forwardCookies: boolean;
 
   /**
-   * Token d'authentification fixe (ex: service-to-service).
-   * Utilisé si fourni, sinon getToken() est appelé.
+   * Static authentication token (e.g., service-to-service calls).
+   * Used if provided; otherwise getToken() is called per-request.
+   *
+   * Token Priority:
+   * 1. HttpOnly cookies (Set-Cookie from server) → RECOMMENDED, automatic with fetch
+   * 2. Token storage (localStorage, sessionStorage, or token storage impl)
+   * 3. accessToken (static token, use for service-to-service)
+   * 4. getToken() (dynamic function, use for user sessions)
+   *
+   * @example
+   * ```typescript
+   * // Static service token
+   * createHttp({ auth: { accessToken: process.env.API_KEY } })
+   *
+   * // Dynamic token from browser storage
+   * createClientHttp({ auth: { getToken: () => localStorage.getItem('token') } })
+   *
+   * // Token refresh with automatic retry
+   * createHttp({ auth: { getToken: refreshableToken } })
+   * ```
    */
   accessToken?: string;
 
   /**
-   * Schéma d'authentification dans le header Authorization.
-   * Valeurs courantes: "Bearer", "Basic", "ApiKey"
-   * Défaut: "Bearer"
+   * Authentication scheme used in Authorization header.
+   * Common values: "Bearer", "Basic", "ApiKey", "AWS4-HMAC-SHA256"
+   * Default: "Bearer"
    */
   scheme: string;
 
   /**
-   * Fonction pour récupérer le token dynamiquement.
-   * Appelée pour chaque requête si accessToken n'est pas défini.
-   * Peut être utilisée pour lire depuis localStorage (client) ou process.env (server).
+   * Dynamic token retrieval function called for each request.
+   * Called only if accessToken is undefined.
+   * Can read from localStorage (client), process.env (server), or refresh endpoints.
+   *
+   * Priority order for token sources (checked in this order):
+   * 1. HttpOnly cookies (automatic, most secure)
+   * 2. getToken() callback (your implementation)
+   * 3. accessToken static value (fallback)
+   *
+   * @returns Token string, null if no auth, or Promise if async (e.g., refresh)
+   *
+   * @example
+   * ```typescript
+   * // Read from localStorage
+   * getToken: () => localStorage.getItem('token')
+   *
+   * // Read from async storage
+   * getToken: async () => {
+   *   const stored = await tokenStorage.get();
+   *   if (!stored || isExpired(stored)) {
+   *     return await refreshToken();
+   *   }
+   *   return stored;
+   * }
+   * ```
    */
   getToken?: () => Promise<string | null> | string | null;
 }
