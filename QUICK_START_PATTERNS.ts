@@ -1,412 +1,424 @@
 /**
- * QUICK START PATTERNS - rhttp.io v3.0
- * Copy-paste ready examples for common use cases
+ * QUICK_START_PATTERNS.ts
+ *
+ * Comprehensive examples of common rhttp.io patterns.
+ * All examples are production-ready and can be used as templates.
+ *
+ * @version 1.0.0
  */
 
-// ═══════════════════════════════════════════════════════════════════════════
-// PATTERN 1: Basic SPA Setup
-// ═══════════════════════════════════════════════════════════════════════════
+import { createClientHttp, createServerHttp, HttpError } from "rhttp.io";
 
-import { createClientHttp } from "rhttp.io/client";
-import { createObservabilityMiddleware } from "rhttp.io";
+// ============================================================================
+// PATTERN 1: Basic Client Setup
+// ============================================================================
 
-export const createApiClient = () => {
-  // Create HTTP client with smart defaults
+export function example_1_1_basic_browser_setup() {
   const http = createClientHttp({
-    baseURL: import.meta.env.VITE_API_URL,
-    timeout: 15_000,
-  });
-
-  // Add observability in development
-  if (import.meta.env.DEV) {
-    const obs = createObservabilityMiddleware({
-      enableLogging: true,
-      enableMetrics: true,
-    });
-    http.use(obs);
-  }
-
-  return http;
-};
-
-export const http = createApiClient();
-
-// ═══════════════════════════════════════════════════════════════════════════
-// PATTERN 2: Login Flow with Secure Token Storage
-// ═══════════════════════════════════════════════════════════════════════════
-
-export async function login(email: string, password: string) {
-  try {
-    const response = await http.post("/auth/login", {
-      email,
-      password,
-    });
-
-    // ✅ Token stored securely (Hybrid by default)
-    await http.setToken(response.data.token);
-
-    return response.data;
-  } catch (error) {
-    if (error.status === 401) {
-      throw new Error("Invalid credentials");
-    }
-    throw error;
-  }
-}
-
-export async function logout() {
-  try {
-    await http.post("/auth/logout");
-  } finally {
-    // ✅ Clear token securely
-    await http.clearToken();
-  }
-}
-
-export async function isLoggedIn() {
-  return await http.hasToken();
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// PATTERN 3: Polling with Proper Handling
-// ═══════════════════════════════════════════════════════════════════════════
-
-export async function pollJobStatus(jobId: string) {
-  try {
-    // ✅ Poll executes immediately, returns actual result
-    const response = await http.poll(`/jobs/${jobId}`, {
-      polling: {
-        interval: 2_000, // Poll every 2 seconds
-        maxAttempts: 30, // Max 30 attempts = 1 minute total
-        stopCondition: (res) => {
-          // Stop when job is completed or failed
-          const status = res.data?.status;
-          return status === "completed" || status === "failed";
-        },
-      },
-    });
-
-    console.log("Final job status:", response.data.status);
-    return response.data;
-  } catch (error) {
-    console.error("Polling failed:", error);
-    throw error;
-  }
-}
-
-// Usage:
-// const job = await pollJobStatus("job-123");
-// console.log(job.result); // Job is completed
-
-// ═══════════════════════════════════════════════════════════════════════════
-// PATTERN 4: SSR with TanStack Start
-// ═══════════════════════════════════════════════════════════════════════════
-
-import { createServerHttp } from "rhttp.io/server";
-import { getRequest } from "@tanstack/react-start/server";
-import { createServerFn } from "@tanstack/react-start/server";
-
-// Create once at startup
-const serverHttp = createServerHttp({
-  baseURL: process.env.INTERNAL_API_URL || "http://localhost:3000",
-  timeout: 30_000,
-  requestContext: () => getRequest(), // Auto-forwards cookies
-});
-
-// Server function that uses it
-export const getUserProfile = createServerFn({
-  method: "GET",
-}).handler(async () => {
-  try {
-    // ✅ Cookies from client request are automatically forwarded
-    const response = await serverHttp.get("/user/profile");
-    return response.data;
-  } catch (error) {
-    throw new Error("Failed to fetch profile");
-  }
-});
-
-// ═══════════════════════════════════════════════════════════════════════════
-// PATTERN 5: Observability & Monitoring
-// ═══════════════════════════════════════════════════════════════════════════
-
-export const setupObservability = (http: any) => {
-  const obs = createObservabilityMiddleware({
-    enableLogging: true,
-    enableTracing: true,
-    enableMetrics: true,
-    maxTracesStored: 100,
-
-    // Send to your monitoring service
-    onTrace: async (trace) => {
-      if (import.meta.env.PROD) {
-        // Send to Datadog, Sentry, etc.
-        await sendToMonitoring({
-          type: "request",
-          traceId: trace.traceId,
-          url: trace.url,
-          duration: trace.duration,
-          status: trace.status,
-          error: trace.error?.message,
-        });
-      }
-    },
-
-    onLog: async (entry) => {
-      if (entry.level === "error" && import.meta.env.PROD) {
-        await sendToMonitoring({
-          type: "error",
-          level: entry.level,
-          message: entry.message,
-          context: entry.context,
-        });
-      }
-    },
-  });
-
-  http.use(obs);
-
-  // Export metrics getter
-  return {
-    getMetrics: () => obs.getMetrics(),
-    getTraces: (filter?: any) => obs.getTraces(filter),
-    getLogs: (filter?: any) => obs.getLogs(filter),
-  };
-};
-
-// Usage in component:
-// const { getMetrics } = setupObservability(http);
-// setInterval(() => {
-//   const metrics = getMetrics();
-//   console.log(`Avg duration: ${metrics.avgDuration}ms, P95: ${metrics.p95Duration}ms`);
-// }, 10_000);
-
-// ═══════════════════════════════════════════════════════════════════════════
-// PATTERN 6: Compression for Large Payloads
-// ═══════════════════════════════════════════════════════════════════════════
-
-import { createCompressionMiddleware } from "rhttp.io";
-
-export const setupCompression = (http: any) => {
-  http.use(
-    createCompressionMiddleware({
-      enabled: true,
-      algorithms: ["gzip", "deflate"],
-      minSize: 512, // Compress if > 512 bytes
-      level: 6, // Compression level 1-9
-    }),
-  );
-};
-
-// Usage:
-// const http = createClientHttp();
-// setupCompression(http);
-
-// ═══════════════════════════════════════════════════════════════════════════
-// PATTERN 7: HTTP/2 Server Push
-// ═══════════════════════════════════════════════════════════════════════════
-
-import { createHttp2PushMiddleware } from "rhttp.io";
-
-export const setupHttp2Push = (http: any) => {
-  const pushMiddleware = createHttp2PushMiddleware({
-    enabled: true,
-    maxPushes: 5,
-    cacheManifest: {
-      // When /api/user is requested, also push these
-      "/api/user": ["/api/user/settings", "/api/user/preferences"],
-
-      // When /api/dashboard is requested, push these
-      "/api/dashboard": ["/api/dashboard/stats", "/api/dashboard/charts"],
-    },
-  });
-
-  http.use(pushMiddleware);
-
-  // Add dynamically
-  pushMiddleware.addPushManifest("/api/products", [
-    "/api/products/categories",
-    "/api/products/filters",
-  ]);
-
-  return pushMiddleware;
-};
-
-// ═══════════════════════════════════════════════════════════════════════════
-// PATTERN 8: Service Worker for Offline Support
-// ═══════════════════════════════════════════════════════════════════════════
-
-import { createServiceWorkerMiddleware } from "rhttp.io";
-
-export const setupServiceWorker = async (http: any) => {
-  const swMiddleware = createServiceWorkerMiddleware({
-    enabled: "serviceWorker" in navigator,
-    workerPath: "/sw.js",
-    cacheStrategy: "stale-while-revalidate",
-    cacheName: "api-cache-v1",
-    maxCacheSize: 100,
-  });
-
-  // Register service worker
-  try {
-    await swMiddleware.register();
-    console.log("Service Worker registered");
-  } catch (error) {
-    console.warn("Service Worker registration failed:", error);
-  }
-
-  http.use(swMiddleware);
-
-  // Check offline status
-  window.addEventListener("offline", () => {
-    console.log("App is offline - using cached responses");
-  });
-
-  return swMiddleware;
-};
-
-// ═══════════════════════════════════════════════════════════════════════════
-// PATTERN 9: Error Handling with Custom Errors
-// ═══════════════════════════════════════════════════════════════════════════
-
-import { HttpError, TimeoutError, NetworkError } from "rhttp.io";
-
-export async function fetchDataWithErrorHandling(url: string) {
-  try {
-    const response = await http.get(url);
-    return response.data;
-  } catch (error) {
-    if (error instanceof TimeoutError) {
-      console.error("Request timed out after 30 seconds");
-      // Show timeout UI
-      throw new Error("Request took too long, please try again");
-    } else if (error instanceof NetworkError) {
-      console.error("Network error:", error.originalError);
-      // Handle offline
-      throw new Error("Network connection failed");
-    } else if (error instanceof HttpError) {
-      if (error.status === 401) {
-        // Handle unauthorized
-        await logout();
-        throw new Error("Session expired, please login again");
-      } else if (error.status === 404) {
-        throw new Error("Resource not found");
-      } else if (error.status >= 500) {
-        throw new Error("Server error, please try again later");
-      }
-      throw error;
-    }
-    throw error;
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// PATTERN 10: Complete Setup for Production
-// ═══════════════════════════════════════════════════════════════════════════
-
-export async function setupHttpClient() {
-  // 1. Create base client
-  const http = createClientHttp({
-    baseURL: import.meta.env.VITE_API_URL,
+    baseURL: "https://api.example.com",
     timeout: 30_000,
-    tokenStorage: "hybrid", // Secure storage
-    retry: { attempts: 2, strategy: "exponential" },
+  });
+  return http;
+}
+
+export function example_1_2_full_browser_setup() {
+  const http = createClientHttp({
+    baseURL: "https://api.example.com",
+    timeout: 30_000,
+    auth: {
+      scheme: "Bearer",
+      getToken: async () => localStorage.getItem("auth_token") || undefined,
+    },
     cache: {
       enabled: true,
-      ttl: 5 * 60_000, // 5 minutes
-      strategy: "stale-while-revalidate",
+      ttl: 5 * 60 * 1000,
+      strategy: "network-first",
+    },
+    retry: {
+      attempts: 2,
+      strategy: "exponential",
+    },
+    observability: {
+      enableLogging: true,
+      enableMetrics: true,
     },
   });
+  return http;
+}
 
-  // 2. Add observability
-  if (import.meta.env.DEV) {
-    setupObservability(http);
-  }
+export function example_1_3_server_setup() {
+  const http = createServerHttp({
+    baseURL: "https://api.example.com",
+    timeout: 60_000,
+  });
+  return http;
+}
 
-  // 3. Add compression
-  if (import.meta.env.PROD) {
-    setupCompression(http);
-  }
+// ============================================================================
+// PATTERN 2: Authentication & Token Management
+// ============================================================================
 
-  // 4. Add HTTP/2 push
-  setupHttp2Push(http);
+export function example_2_1_static_token() {
+  const http = createClientHttp({
+    baseURL: "https://api.example.com",
+    auth: {
+      scheme: "Bearer",
+      token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    },
+  });
+  return http;
+}
 
-  // 5. Add Service Worker
-  if ("serviceWorker" in navigator) {
-    await setupServiceWorker(http);
-  }
+export function example_2_2_dynamic_token() {
+  const http = createClientHttp({
+    baseURL: "https://api.example.com",
+    auth: {
+      scheme: "Bearer",
+      getToken: async () => {
+        const response = await fetch("/auth/token");
+        const { token } = await response.json();
+        return token;
+      },
+    },
+  });
+  return http;
+}
 
-  // 6. Setup request interceptors
-  http.interceptors.request.use((options) => {
-    // Add request ID for tracing
-    options.headers = options.headers || {};
-    options.headers["X-Request-ID"] = generateUUID();
-    return options;
+export function example_2_3_token_refresh() {
+  const http = createClientHttp({
+    baseURL: "https://api.example.com",
+    auth: {
+      scheme: "Bearer",
+      getToken: async () => localStorage.getItem("token") || undefined,
+      refreshToken: async (oldToken: string) => {
+        const response = await fetch("/auth/refresh", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: oldToken }),
+        });
+        if (!response.ok) throw new Error("Token refresh failed");
+        const { token } = await response.json();
+        localStorage.setItem("token", token);
+        return token;
+      },
+    },
+  });
+  return http;
+}
+
+// ============================================================================
+// PATTERN 3: Caching Strategies
+// ============================================================================
+
+export function example_3_1_network_first() {
+  const http = createClientHttp({
+    baseURL: "https://api.example.com",
+    cache: {
+      enabled: true,
+      strategy: "network-first",
+      ttl: 5 * 60 * 1000,
+    },
+  });
+  return http;
+}
+
+export function example_3_2_cache_first() {
+  const http = createClientHttp({
+    baseURL: "https://api.example.com",
+    cache: {
+      enabled: true,
+      strategy: "cache-first",
+      ttl: 24 * 60 * 60 * 1000,
+    },
+  });
+  return http;
+}
+
+export function example_3_3_smart_caching() {
+  const http = createClientHttp({
+    baseURL: "https://api.example.com",
+    cache: {
+      enabled: true,
+      strategy: "network-first",
+      smartCaching: [
+        {
+          pattern: /^\/users($|\/)/,
+          ttl: 5 * 60 * 1000,
+          invalidateOn: ["POST", "PUT", "DELETE"],
+          tags: ["users"],
+        },
+      ],
+    },
+  });
+  return http;
+}
+
+// ============================================================================
+// PATTERN 4: Error Handling
+// ============================================================================
+
+export async function example_4_1_basic_errors() {
+  const http = createClientHttp({
+    baseURL: "https://api.example.com",
   });
 
-  // 7. Setup response interceptors
-  http.interceptors.response.use(
-    (response) => {
-      // Success handling
-      return response;
-    },
-    (error) => {
-      // Error handling
-      console.error("Request failed:", error);
-      throw error;
-    },
-  );
+  try {
+    const data = await http.get("/users/123");
+    console.log("Success:", data);
+  } catch (error) {
+    if (error instanceof HttpError) {
+      console.error("HTTP Error:", error.status);
+    }
+  }
+}
+
+export function example_4_2_error_hooks() {
+  const http = createClientHttp({
+    baseURL: "https://api.example.com",
+  });
+
+  http.on("error", (context) => {
+    const { error, status, retryCount } = context;
+    if (status === 401) console.error("Unauthorized");
+    else console.error(`Failed: ${error.message}`);
+  });
 
   return http;
 }
 
-// Usage in main app:
-// const http = await setupHttpClient();
-// window.http = http; // Make available globally for debugging
+// ============================================================================
+// PATTERN 5: Interceptors & Lifecycle Hooks
+// ============================================================================
 
-// ═══════════════════════════════════════════════════════════════════════════
-// HELPER FUNCTIONS
-// ═══════════════════════════════════════════════════════════════════════════
-
-function generateUUID(): string {
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === "x" ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
+export function example_5_1_request_interceptors() {
+  const http = createClientHttp({
+    baseURL: "https://api.example.com",
   });
+
+  http.interceptors.request.use((config) => ({
+    ...config,
+    headers: {
+      ...config.headers,
+      "X-Custom-Header": "value",
+    },
+  }));
+
+  return http;
 }
 
-async function sendToMonitoring(data: any) {
-  try {
-    await fetch("https://monitoring.example.com/api/events", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
+export function example_5_3_lifecycle_hooks() {
+  const http = createClientHttp({
+    baseURL: "https://api.example.com",
+  });
+
+  http.on("request", (context) => {
+    console.log(`→ ${context.method} ${context.url}`);
+  });
+
+  http.on("success", (context) => {
+    console.log(
+      `← ${context.status} ${context.url} (${context.timing.total}ms)`,
+    );
+  });
+
+  http.on("error", (context) => {
+    console.error(`✗ ${context.status} ${context.url}`);
+  });
+
+  return http;
+}
+
+// ============================================================================
+// PATTERN 6: Advanced Features
+// ============================================================================
+
+export async function example_6_1_deduplication() {
+  const http = createClientHttp({
+    baseURL: "https://api.example.com",
+    deduplication: { enabled: true },
+  });
+
+  const [users1, users2] = await Promise.all([
+    http.get("/users"),
+    http.get("/users"),
+  ]);
+
+  return { users1 };
+}
+
+export function example_6_2_circuit_breaker() {
+  const http = createClientHttp({
+    baseURL: "https://api.example.com",
+    circuitBreaker: {
+      enabled: true,
+      failureThreshold: 5,
+      timeout: 60_000,
+    },
+  });
+  return http;
+}
+
+export function example_6_4_request_history() {
+  const http = createClientHttp({
+    baseURL: "https://api.example.com",
+    observability: {
+      enableRequestHistory: true,
+      requestHistoryMaxSize: 100,
+    },
+  });
+
+  const history = http.getRequestHistory();
+  history.forEach(({ url, method, status, duration }) => {
+    console.log(`${method} ${url} → ${status} (${duration}ms)`);
+  });
+
+  return http;
+}
+
+// ============================================================================
+// PATTERN 7: Batch Operations
+// ============================================================================
+
+export async function example_9_1_batch_requests() {
+  const http = createClientHttp({
+    baseURL: "https://api.example.com",
+  });
+
+  const [users, posts, comments] = await Promise.all([
+    http.get("/users"),
+    http.get("/posts"),
+    http.get("/comments"),
+  ]);
+
+  return { users, posts, comments };
+}
+
+export async function example_9_2_sequential_requests() {
+  const http = createClientHttp({
+    baseURL: "https://api.example.com",
+  });
+
+  const user = await http.get("/users/123");
+  const userPosts = await http.get(`/users/${user.id}/posts`);
+  const firstPostComments = await http.get(
+    `/posts/${userPosts[0].id}/comments`,
+  );
+
+  return { user, userPosts, firstPostComments };
+}
+
+// ============================================================================
+// PATTERN 8: Production Setup
+// ============================================================================
+
+export function example_10_1_production_config() {
+  const http = createClientHttp({
+    baseURL: process.env.REACT_APP_API_URL || "https://api.example.com",
+    timeout: 30_000,
+    auth: {
+      scheme: "Bearer",
+      getToken: async () => localStorage.getItem("auth_token") || undefined,
+    },
+    cache: {
+      enabled: true,
+      strategy: "network-first",
+      ttl: 5 * 60 * 1000,
+    },
+    retry: {
+      attempts: 3,
+      strategy: "exponential",
+    },
+    circuitBreaker: {
+      enabled: true,
+      failureThreshold: 5,
+    },
+    observability: {
+      enableLogging: true,
+      enableMetrics: true,
+      enableRequestHistory: true,
+    },
+  });
+
+  http.on("error", (context) => {
+    console.error("Request failed", {
+      error: context.error.message,
+      status: context.status,
     });
-  } catch {
-    // Ignore monitoring errors
+  });
+
+  return http;
+}
+
+// ============================================================================
+// PATTERN 9: TypeScript Types
+// ============================================================================
+
+export async function example_11_1_typed_responses() {
+  interface User {
+    id: number;
+    name: string;
+    email: string;
   }
+
+  const http = createClientHttp({
+    baseURL: "https://api.example.com",
+  });
+
+  const response = await http.get<User[]>("/users");
+  const user = response.data[0];
+  console.log(user.name);
+
+  return response;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// TYPESCRIPT TYPES (Optional)
-// ═══════════════════════════════════════════════════════════════════════════
+export async function example_11_2_typed_requests() {
+  interface CreateUserRequest {
+    name: string;
+    email: string;
+  }
 
-export interface User {
-  id: string;
-  email: string;
-  name: string;
+  interface CreateUserResponse {
+    id: number;
+    name: string;
+  }
+
+  const http = createClientHttp({
+    baseURL: "https://api.example.com",
+  });
+
+  const request: CreateUserRequest = {
+    name: "John",
+    email: "john@example.com",
+  };
+
+  const response = await http.post<CreateUserResponse>("/users", request);
+  return response;
 }
 
-export interface Job {
-  id: string;
-  status: "pending" | "running" | "completed" | "failed";
-  result?: any;
-  error?: string;
-}
+// ============================================================================
+// Export all patterns
+// ============================================================================
 
-export interface ApiResponse<T> {
-  data: T;
-  status: number;
-  headers: Record<string, string>;
-}
+export const patterns = {
+  "1.1": example_1_1_basic_browser_setup,
+  "1.2": example_1_2_full_browser_setup,
+  "1.3": example_1_3_server_setup,
+  "2.1": example_2_1_static_token,
+  "2.2": example_2_2_dynamic_token,
+  "2.3": example_2_3_token_refresh,
+  "3.1": example_3_1_network_first,
+  "3.2": example_3_2_cache_first,
+  "3.3": example_3_3_smart_caching,
+  "4.1": example_4_1_basic_errors,
+  "4.2": example_4_2_error_hooks,
+  "5.1": example_5_1_request_interceptors,
+  "5.3": example_5_3_lifecycle_hooks,
+  "6.1": example_6_1_deduplication,
+  "6.2": example_6_2_circuit_breaker,
+  "6.4": example_6_4_request_history,
+  "9.1": example_9_1_batch_requests,
+  "9.2": example_9_2_sequential_requests,
+  "10.1": example_10_1_production_config,
+  "11.1": example_11_1_typed_responses,
+  "11.2": example_11_2_typed_requests,
+};
