@@ -1,7 +1,7 @@
 <div align="center">
 
 <div align="center">
-  <img src="./public/assets/rhttp-cover.png" alt="rhttp.io cover" width="100%" />
+  <img src="https://raw.githubusercontent.com/elprof45/rhttp.io/refs/heads/main/public/assets/rhttp-cover.png" alt="rhttp.io cover" width="100%" />
   <br /><br />
   <!-- <img src="./public/assets/rhttp-logo.png" alt="rhttp.io logo" width="220" /> -->
 </div>
