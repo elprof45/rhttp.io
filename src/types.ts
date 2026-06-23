@@ -28,7 +28,10 @@ export interface RetryConfig {
   /**
    * Fonction personnalisée pour décider du retry.
    */
-  shouldRetry?: (error: unknown, attemptNumber: number) => Promise<boolean> | boolean;
+  shouldRetry?: (
+    error: unknown,
+    attemptNumber: number,
+  ) => Promise<boolean> | boolean;
 }
 
 export interface CacheConfig {
@@ -240,7 +243,10 @@ export interface CreateHttpConfig {
   responseTransformer?: ResponseTransformer;
 }
 
-export interface HttpRequestOptions extends Omit<RequestInit, "headers" | "cache"> {
+export interface HttpRequestOptions extends Omit<
+  RequestInit,
+  "headers" | "cache"
+> {
   /**
    * Paramètres de query (sérialisés automatiquement).
    */
@@ -325,7 +331,7 @@ export interface InterceptorHandler<T> {
 export interface InterceptorManager<T> {
   use: (
     onFulfilled: (value: T) => Promise<T> | T,
-    onRejected?: (error: any) => Promise<any> | any
+    onRejected?: (error: any) => Promise<any> | any,
   ) => InterceptorHandler<T>;
   eject: (id: number) => void;
   clear: () => void;
@@ -343,13 +349,98 @@ export interface HttpMetrics {
 // Advanced Features Types
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type CacheStrategy = "cache-only" | "network-first" | "cache-first" | "stale-while-revalidate" | "network-only";
+export type CacheStrategy =
+  | "cache-only"
+  | "network-first"
+  | "cache-first"
+  | "stale-while-revalidate"
+  | "network-only";
 
+/**
+ * Lifecycle hooks with rich context for request/response cycle
+ *
+ * Hooks are executed in this order:
+ * 1. onRequest - before request is sent
+ * 2. (network call)
+ * 3. onRetry (if applicable) - before each retry
+ * 4. onSuccess - on successful response
+ * 5. onError - on error (before retry decision)
+ * 6. onFinally - always, after all retries exhausted
+ */
 export interface RequestHooks {
-  onRequest?: (url: string, options: any) => void | Promise<void>;
-  onSuccess?: (response: HttpResponse<any>) => void | Promise<void>;
-  onError?: (error: any) => void | Promise<void>;
-  onFinally?: () => void | Promise<void>;
+  /**
+   * Called before the request is sent
+   * Can be used to log, modify options, or validate
+   * Return false to abort the request
+   */
+  onRequest?: (context: {
+    url: string;
+    method: string;
+    options: any;
+    requestId: string;
+    timestamp: number;
+  }) => boolean | void | Promise<boolean | void>;
+
+  /**
+   * Called on successful response (any 2xx status)
+   * Can be used to log, transform data, or trigger side effects
+   */
+  onSuccess?: (context: {
+    url: string;
+    method: string;
+    status: number;
+    response: HttpResponse<any>;
+    durationMs: number;
+    requestId: string;
+    isCached: boolean;
+    timestamp: number;
+  }) => void | Promise<void>;
+
+  /**
+   * Called on error (network error, non-2xx status, validation error)
+   * Called BEFORE retry decision, so can influence retry behavior
+   * Throw to prevent retries
+   */
+  onError?: (context: {
+    url: string;
+    method: string;
+    error: any;
+    status?: number;
+    attemptNumber: number;
+    durationMs: number;
+    requestId: string;
+    willRetry: boolean;
+    timestamp: number;
+  }) => void | Promise<void>;
+
+  /**
+   * Called before each retry attempt (if applicable)
+   * Can be used to log retry attempts or modify retry strategy
+   */
+  onRetry?: (context: {
+    url: string;
+    method: string;
+    attemptNumber: number;
+    totalAttempts: number;
+    delayMs: number;
+    reason: string;
+    requestId: string;
+    timestamp: number;
+  }) => void | Promise<void>;
+
+  /**
+   * Called after all requests are done (success or exhausted retries)
+   * Always called, useful for cleanup
+   */
+  onFinally?: (context: {
+    url: string;
+    method: string;
+    success: boolean;
+    totalAttempts: number;
+    totalDurationMs: number;
+    requestId: string;
+    timestamp: number;
+  }) => void | Promise<void>;
 }
 
 export interface CircuitBreakerConfig {
@@ -376,9 +467,15 @@ export interface ETagConfig {
   storage?: "memory" | "localStorage"; // Where to store ETags
 }
 
-export type ResponseTransformer = (data: any, response: HttpResponse<any>) => any;
+export type ResponseTransformer = (
+  data: any,
+  response: HttpResponse<any>,
+) => any;
 
-export type RequestValidator = (url: string, options: any) => boolean | Promise<boolean>;
+export type RequestValidator = (
+  url: string,
+  options: any,
+) => boolean | Promise<boolean>;
 
 export interface PluginConfig {
   name: string;
@@ -390,29 +487,72 @@ export interface PluginConfig {
 export interface HttpClientInstance {
   config: CreateHttpConfig;
   interceptors: {
-    request: InterceptorManager<HttpRequestOptions & { url: string; method: string; body?: any }>;
+    request: InterceptorManager<
+      HttpRequestOptions & { url: string; method: string; body?: any }
+    >;
     response: InterceptorManager<HttpResponse<any>>;
   };
 
-  get<T = any>(url: string, options?: HttpRequestOptions): Promise<HttpResponse<T>>;
+  get<T = any>(
+    url: string,
+    options?: HttpRequestOptions,
+  ): Promise<HttpResponse<T>>;
 
-  post<T = any>(url: string, body?: any, options?: HttpRequestOptions): Promise<HttpResponse<T>>;
-  post<B = any, T = any>(url: string, body: B, options?: HttpRequestOptions): Promise<HttpResponse<T>>;
+  post<T = any>(
+    url: string,
+    body?: any,
+    options?: HttpRequestOptions,
+  ): Promise<HttpResponse<T>>;
+  post<B = any, T = any>(
+    url: string,
+    body: B,
+    options?: HttpRequestOptions,
+  ): Promise<HttpResponse<T>>;
 
-  put<T = any>(url: string, body?: any, options?: HttpRequestOptions): Promise<HttpResponse<T>>;
-  put<B = any, T = any>(url: string, body: B, options?: HttpRequestOptions): Promise<HttpResponse<T>>;
+  put<T = any>(
+    url: string,
+    body?: any,
+    options?: HttpRequestOptions,
+  ): Promise<HttpResponse<T>>;
+  put<B = any, T = any>(
+    url: string,
+    body: B,
+    options?: HttpRequestOptions,
+  ): Promise<HttpResponse<T>>;
 
-  patch<T = any>(url: string, body?: any, options?: HttpRequestOptions): Promise<HttpResponse<T>>;
-  patch<B = any, T = any>(url: string, body: B, options?: HttpRequestOptions): Promise<HttpResponse<T>>;
+  patch<T = any>(
+    url: string,
+    body?: any,
+    options?: HttpRequestOptions,
+  ): Promise<HttpResponse<T>>;
+  patch<B = any, T = any>(
+    url: string,
+    body: B,
+    options?: HttpRequestOptions,
+  ): Promise<HttpResponse<T>>;
 
-  delete<T = any>(url: string, options?: HttpRequestOptions): Promise<HttpResponse<T>>;
-  delete<B = any, T = any>(url: string, body: B, options?: HttpRequestOptions): Promise<HttpResponse<T>>;
+  delete<T = any>(
+    url: string,
+    options?: HttpRequestOptions,
+  ): Promise<HttpResponse<T>>;
+  delete<B = any, T = any>(
+    url: string,
+    body: B,
+    options?: HttpRequestOptions,
+  ): Promise<HttpResponse<T>>;
 
-  customFetch<T = any>(url: string, options?: RequestInit & HttpRequestOptions): Promise<HttpResponse<T>>;
+  customFetch<T = any>(
+    url: string,
+    options?: RequestInit & HttpRequestOptions,
+  ): Promise<HttpResponse<T>>;
 
   batchRequests<T extends ReadonlyArray<() => Promise<HttpResponse<any>>>>(
-    requests: T
-  ): Promise<{ -readonly [K in keyof T]: T[K] extends () => Promise<HttpResponse<infer R>> ? HttpResponse<R> : any }>;
+    requests: T,
+  ): Promise<{
+    -readonly [K in keyof T]: T[K] extends () => Promise<HttpResponse<infer R>>
+      ? HttpResponse<R>
+      : any;
+  }>;
 
   invalidateCache(urlPattern: string): void;
   clearCache(): void;
@@ -426,7 +566,10 @@ export interface HttpClientInstance {
   /**
    * Polling avec intervalle et conditions d'arrêt
    */
-  poll<T = any>(url: string, options?: HttpRequestOptions & { polling?: Partial<PollingConfig> }): Promise<HttpResponse<T>>;
+  poll<T = any>(
+    url: string,
+    options?: HttpRequestOptions & { polling?: Partial<PollingConfig> },
+  ): Promise<HttpResponse<T>>;
 
   /**
    * Annuler les requêtes en cours

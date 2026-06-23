@@ -1,7 +1,13 @@
 export * from "./core";
 export * from "./types";
 export * from "./errors";
-export { buildUrl, getCookie, parseHeaders, parseResponse, generateRequestId } from "./utils";
+export {
+  buildUrl,
+  getCookie,
+  parseHeaders,
+  parseResponse,
+  generateRequestId,
+} from "./utils";
 export { createClientHttp } from "./client";
 export { createServerHttp } from "./server";
 export {
@@ -36,12 +42,10 @@ export {
   type LogEntry,
 } from "./observability";
 
-// Optimization: Compression, HTTP/2 Push, Service Worker
+// Optimization: Compression and HTTP/2 Push
 export {
   createCompressionMiddleware,
   createHttp2PushMiddleware,
-  createServiceWorkerMiddleware,
-  createModernClientOptimizations,
   type CompressionConfig,
   type Http2PushConfig,
 } from "./optimization";
@@ -61,7 +65,6 @@ export {
 } from "./features";
 
 export {
-  withGraphQL,
   withSchemaValidation,
   createCompressionMiddleware as createCompressionMiddlewareExt,
   calculateRetryDelayWithJitter,
@@ -73,9 +76,5 @@ export {
   AdaptiveRetryStrategy,
   createTimeoutMiddleware,
   createETagCacheMiddleware,
-  type GraphQLRequest,
-  type GraphQLResponse,
-  type GraphQLError,
-  type CompressionConfig as ExtCompressionConfig,
   type SchemaValidator,
 } from "./extensions";

@@ -1,4 +1,4 @@
-import type { HttpClientInstance, HttpResponse } from "./types";
+import type { HttpClientInstance } from "./types";
 import { HttpError } from "./errors";
 
 export interface RefreshAuthOptions {
@@ -21,16 +21,18 @@ export interface RefreshAuthOptions {
 }
 
 /**
-   * Creates an interceptor function for response errors that handles automatic JWT refresh.
-   * 
-   * @param client The HttpClientInstance to attach to.
-   * @param options Configuration options for refresh behavior.
-   */
+ * Creates an interceptor function for response errors that handles automatic JWT refresh.
+ *
+ * @param client The HttpClientInstance to attach to.
+ * @param options Configuration options for refresh behavior.
+ */
 export function createRefreshAuthInterceptor(
   client: HttpClientInstance,
-  options: RefreshAuthOptions
+  options: RefreshAuthOptions,
 ) {
   const statusCodes = options.statusCodes || [401];
+  const REFRESH_TIMEOUT = 10_000; // 10 second timeout for token refresh
+
   let isRefreshing = false;
   let refreshQueue: Array<{
     resolve: (token: string | null) => void;
@@ -73,12 +75,12 @@ export function createRefreshAuthInterceptor(
       })
         .then((newToken) => {
           if (!newToken) throw error;
-          
+
           // Re-inject token in headers
           const scheme = client.config.auth?.scheme || "Bearer";
           originalRequest.headers = originalRequest.headers || {};
           originalRequest.headers["authorization"] = `${scheme} ${newToken}`;
-          
+
           // Re-run the request
           return client.customFetch(originalRequest.url, originalRequest);
         })
@@ -90,7 +92,20 @@ export function createRefreshAuthInterceptor(
     isRefreshing = true;
 
     try {
-      const newToken = await options.refreshToken();
+      // Apply timeout to token refresh to prevent hanging indefinitely
+      const newToken = await Promise.race([
+        options.refreshToken(),
+        new Promise<null>((_, reject) =>
+          setTimeout(
+            () =>
+              reject(
+                new Error(`Token refresh timeout after ${REFRESH_TIMEOUT}ms`),
+              ),
+            REFRESH_TIMEOUT,
+          ),
+        ),
+      ]);
+
       if (!newToken) {
         throw error;
       }
@@ -103,7 +118,11 @@ export function createRefreshAuthInterceptor(
       if (client.config.auth) {
         client.config.auth.accessToken = newToken;
       } else {
-        client.config.auth = { accessToken: newToken, scheme: "Bearer", forwardCookies: false };
+        client.config.auth = {
+          accessToken: newToken,
+          scheme: "Bearer",
+          forwardCookies: false,
+        };
       }
 
       // Re-inject token in headers

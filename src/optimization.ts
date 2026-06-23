@@ -25,7 +25,9 @@ export interface Http2PushConfig {
 /**
  * Create compression middleware
  */
-export function createCompressionMiddleware(config?: Partial<CompressionConfig>) {
+export function createCompressionMiddleware(
+  config?: Partial<CompressionConfig>,
+) {
   const finalConfig: CompressionConfig = {
     enabled: config?.enabled ?? true,
     algorithms: config?.algorithms ?? ["gzip", "deflate"],
@@ -150,152 +152,6 @@ export function createHttp2PushMiddleware(config?: Partial<Http2PushConfig>) {
 }
 
 /**
- * Create Service Worker integration middleware
- *
- * Enables offline support and request caching through Service Worker
- */
-export function createServiceWorkerMiddleware(config?: {
-  enabled?: boolean;
-  workerPath?: string;
-  cacheStrategy?: "network-first" | "cache-first" | "stale-while-revalidate";
-  cacheName?: string;
-  maxCacheSize?: number;
-}) {
-  const finalConfig = {
-    enabled: config?.enabled ?? true,
-    workerPath: config?.workerPath ?? "/sw.js",
-    cacheStrategy: config?.cacheStrategy ?? "network-first" as const,
-    cacheName: config?.cacheName ?? "rhttp-cache-v1",
-    maxCacheSize: config?.maxCacheSize ?? 50, // Max cached requests
-  };
-
-  let swRegistration: ServiceWorkerRegistration | null = null;
-  const cachedRequests = new Map<string, Response>();
-
-  return {
-    name: "service-worker",
-    config: finalConfig,
-
-    /**
-     * Register Service Worker
-     */
-    async register() {
-      if (!finalConfig.enabled || typeof navigator === "undefined") return;
-
-      try {
-        swRegistration = await navigator.serviceWorker.register(finalConfig.workerPath, {
-          scope: "/",
-        });
-        console.log("Service Worker registered:", swRegistration);
-      } catch (error) {
-        console.error("Service Worker registration failed:", error);
-      }
-    },
-
-    /**
-     * Unregister Service Worker
-     */
-    async unregister() {
-      if (swRegistration) {
-        await swRegistration.unregister();
-        swRegistration = null;
-      }
-    },
-
-    /**
-     * Check if offline
-     */
-    isOffline(): boolean {
-      return typeof navigator !== "undefined" && !navigator.onLine;
-    },
-
-    /**
-     * Get cached response (for offline mode)
-     */
-    getCachedResponse(url: string): Response | undefined {
-      return cachedRequests.get(url);
-    },
-
-    /**
-     * Cache response manually
-     */
-    async cacheResponse(url: string, response: Response): Promise<void> {
-      if (!finalConfig.enabled || typeof caches === "undefined") return;
-
-      try {
-        const cache = await caches.open(finalConfig.cacheName);
-        await cache.put(url, response.clone());
-
-        // Maintain max cache size
-        if (cachedRequests.size >= finalConfig.maxCacheSize) {
-          const firstKey = cachedRequests.keys().next().value;
-          if (firstKey !== undefined) {
-            cachedRequests.delete(firstKey);
-          }
-        }
-
-        cachedRequests.set(url, response);
-      } catch (error) {
-        console.warn("Failed to cache response:", error);
-      }
-    },
-
-    /**
-     * Clear all caches
-     */
-    async clearCache(): Promise<void> {
-      if (!finalConfig.enabled || typeof caches === "undefined") return;
-
-      try {
-        const names = await caches.keys();
-        await Promise.all(
-          names.map((name) => caches.delete(name))
-        );
-        cachedRequests.clear();
-      } catch (error) {
-        console.warn("Failed to clear caches:", error);
-      }
-    },
-
-    async beforeRequest(url: string, options: any) {
-      if (!finalConfig.enabled) return options;
-
-      // Offline mode: return cached response
-      if (this.isOffline()) {
-        const cached = this.getCachedResponse(url);
-        if (cached) {
-          options._cachedOffline = true;
-          return options;
-        }
-      }
-
-      // Add Service Worker strategy header
-      options.headers = options.headers || {};
-      options.headers["X-Cache-Strategy"] = finalConfig.cacheStrategy;
-
-      return options;
-    },
-
-    async afterResponse(response: any) {
-      if (!finalConfig.enabled) return response;
-
-      // Cache response if not from cache
-      if (!response.options._cachedOffline) {
-        await this.cacheResponse(
-          response.options.url,
-          new Response(response.data, {
-            status: response.status,
-            headers: response.headers,
-          })
-        );
-      }
-
-      return response;
-    },
-  };
-}
-
-/**
  * Create optimized middleware stack for modern clients
  */
 export function createModernClientOptimizations() {
@@ -308,10 +164,6 @@ export function createModernClientOptimizations() {
     createHttp2PushMiddleware({
       enabled: true,
       maxPushes: 5,
-    }),
-    createServiceWorkerMiddleware({
-      enabled: true,
-      cacheStrategy: "stale-while-revalidate",
     }),
   ];
 }

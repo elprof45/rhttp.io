@@ -159,13 +159,13 @@ Every successful request returns an `HttpResponse<T>` object:
 
 ```typescript
 interface HttpResponse<T> {
-  data: T;                   // Parsed response body
-  status: number;            // HTTP status code
-  statusText: string;        // HTTP status text
+  data: T; // Parsed response body
+  status: number; // HTTP status code
+  statusText: string; // HTTP status text
   headers: Record<string, string>; // Normalized response headers
-  response: Response;        // Native fetch Response object
-  requestId: string;         // Unique request identifier
-  durationMs: number;        // Duration in milliseconds
+  response: Response; // Native fetch Response object
+  requestId: string; // Unique request identifier
+  durationMs: number; // Duration in milliseconds
 }
 ```
 
@@ -185,7 +185,8 @@ const http = createHttp({
   cache: {
     enabled: true,
     ttl: 60_000,
-    keyBuilder: (url, options) => `${url}:${JSON.stringify(options.params ?? {})}`,
+    keyBuilder: (url, options) =>
+      `${url}:${JSON.stringify(options.params ?? {})}`,
   },
 
   retry: {
@@ -423,7 +424,9 @@ await http.poll("/status", {
 const history = http.getHistory();
 
 history.forEach((entry) => {
-  console.log(`${entry.method} ${entry.url} - ${entry.status} (${entry.durationMs}ms)`);
+  console.log(
+    `${entry.method} ${entry.url} - ${entry.status} (${entry.durationMs}ms)`,
+  );
 });
 ```
 
@@ -592,7 +595,8 @@ const http = createHttp({
   cache: {
     enabled: true,
     ttl: 60_000,
-    keyBuilder: (url, options) => `${url}:${JSON.stringify(options.params ?? {})}`,
+    keyBuilder: (url, options) =>
+      `${url}:${JSON.stringify(options.params ?? {})}`,
   },
 });
 
@@ -1331,7 +1335,11 @@ console.log(status.rejectedCount);
 console.log(status.timeUntilHalfOpen);
 
 if (breaker.isOpen()) {
-  console.log("Service unavailable, retrying in", status.timeUntilHalfOpen, "ms");
+  console.log(
+    "Service unavailable, retrying in",
+    status.timeUntilHalfOpen,
+    "ms",
+  );
 }
 ```
 

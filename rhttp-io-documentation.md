@@ -8,19 +8,19 @@ rhttp.io exists to replace the pile of small libraries (Axios, a retry wrapper, 
 
 ## ✨ Features at a Glance
 
-| Category | What you get |
-|---|---|
-| 🌍 **Isomorphic** | One API that works identically in browsers, Node.js, and Edge runtimes (Vercel, Cloudflare Workers) |
-| 🔒 **Security** | Built-in CSRF protection, JWT/OAuth support, automatic token refresh, secure cookie forwarding for SSR |
-| ⚡ **Performance** | Five cache strategies, automatic request deduplication, ETag support, smart retries with backoff |
-| 🎯 **Type-safe** | Full TypeScript inference on request bodies and response payloads |
-| 🔄 **Resilience** | Exponential/linear backoff, configurable retryable status codes, per-request timeouts, a circuit breaker, request pooling |
-| 📊 **Observability** | Logging, distributed tracing headers, metrics collection, request history, request profiling |
-| 🪝 **Extensibility** | Request/response interceptors, lifecycle hooks, and a plugin system for cross-cutting concerns |
-| ✅ **Validation** | Request gatekeeping, response shape validation, Zod schema validation, data transformers |
-| ⚙️ **SSR-ready** | Cookie forwarding and request-context binding for TanStack Start, Next.js, and similar frameworks |
-| 📦 **React** | First-class TanStack Query integration for queries and mutations |
-| 🔌 **Realtime** | A Socket.io client with logging, event validation/transformation, lifecycle hooks, rooms, and an offline queue |
+| Category             | What you get                                                                                                              |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| 🌍 **Isomorphic**    | One API that works identically in browsers, Node.js, and Edge runtimes (Vercel, Cloudflare Workers)                       |
+| 🔒 **Security**      | Built-in CSRF protection, JWT/OAuth support, automatic token refresh, secure cookie forwarding for SSR                    |
+| ⚡ **Performance**   | Five cache strategies, automatic request deduplication, ETag support, smart retries with backoff                          |
+| 🎯 **Type-safe**     | Full TypeScript inference on request bodies and response payloads                                                         |
+| 🔄 **Resilience**    | Exponential/linear backoff, configurable retryable status codes, per-request timeouts, a circuit breaker, request pooling |
+| 📊 **Observability** | Logging, distributed tracing headers, metrics collection, request history, request profiling                              |
+| 🪝 **Extensibility** | Request/response interceptors, lifecycle hooks, and a plugin system for cross-cutting concerns                            |
+| ✅ **Validation**    | Request gatekeeping, response shape validation, Zod schema validation, data transformers                                  |
+| ⚙️ **SSR-ready**     | Cookie forwarding and request-context binding for TanStack Start, Next.js, and similar frameworks                         |
+| 📦 **React**         | First-class TanStack Query integration for queries and mutations                                                          |
+| 🔌 **Realtime**      | A Socket.io client with logging, event validation/transformation, lifecycle hooks, rooms, and an offline queue            |
 
 ---
 
@@ -140,17 +140,17 @@ yarn add rhttp.io
 
 rhttp.io ships several entry points instead of a single monolithic import. Pick the one that matches where your code runs — this keeps bundle size down and gives you environment-specific defaults for free.
 
-| Import | Use it when... |
-|---|---|
-| `import { createHttp } from "rhttp.io"` | You want the universal client. Safe default for shared/isomorphic code (e.g. code that runs on both server and client). |
-| `import { createClientHttp } from "rhttp.io/client"` | You're writing browser-only code and want CSRF token prefetching and browser-specific defaults. |
-| `import { createServerHttp } from "rhttp.io/server"` | You're writing server-only code (API routes, server functions) and want cookie forwarding and structured logging by default. |
-| `import { withReact } from "rhttp.io/react"` | You want TanStack Query builders (`.query()`, `.mutation()`) layered on top of any client. |
-| `import { createRealtimeClient } from "rhttp.io/socket.io.client"` | You need a Socket.io connection, not request/response HTTP. |
-| `import { HttpError, TimeoutError, NetworkError } from "rhttp.io"` | You need the error classes for `instanceof` checks. |
-| `import { RateLimiter, RequestProfiler } from "rhttp.io/features"` | You want to use rate limiting or profiling as standalone utilities, outside the main client. |
-| `import { CircuitBreaker } from "rhttp.io/advanced"` | You want to manage a circuit breaker manually instead of via the `circuitBreaker` config option. |
-| `import { withGraphQL, withSchemaValidation, createCompressionMiddleware } from "rhttp.io/extensions"` | You need GraphQL, Zod validation, or compression layered on top of a client. |
+| Import                                                                                                 | Use it when...                                                                                                               |
+| ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| `import { createHttp } from "rhttp.io"`                                                                | You want the universal client. Safe default for shared/isomorphic code (e.g. code that runs on both server and client).      |
+| `import { createClientHttp } from "rhttp.io/client"`                                                   | You're writing browser-only code and want CSRF token prefetching and browser-specific defaults.                              |
+| `import { createServerHttp } from "rhttp.io/server"`                                                   | You're writing server-only code (API routes, server functions) and want cookie forwarding and structured logging by default. |
+| `import { withReact } from "rhttp.io/react"`                                                           | You want TanStack Query builders (`.query()`, `.mutation()`) layered on top of any client.                                   |
+| `import { createRealtimeClient } from "rhttp.io/socket.io.client"`                                     | You need a Socket.io connection, not request/response HTTP.                                                                  |
+| `import { HttpError, TimeoutError, NetworkError } from "rhttp.io"`                                     | You need the error classes for `instanceof` checks.                                                                          |
+| `import { RateLimiter, RequestProfiler } from "rhttp.io/features"`                                     | You want to use rate limiting or profiling as standalone utilities, outside the main client.                                 |
+| `import { CircuitBreaker } from "rhttp.io/advanced"`                                                   | You want to manage a circuit breaker manually instead of via the `circuitBreaker` config option.                             |
+| `import { withGraphQL, withSchemaValidation, createCompressionMiddleware } from "rhttp.io/extensions"` | You need GraphQL, Zod validation, or compression layered on top of a client.                                                 |
 
 ### 1.3 Quick Start
 
@@ -240,13 +240,13 @@ Every successful request — regardless of method — resolves to the same shape
 
 ```typescript
 interface HttpResponse<T> {
-  data: T;                          // Parsed response body
-  status: number;                   // HTTP status code, e.g. 200
-  statusText: string;               // HTTP status text, e.g. "OK"
-  headers: Record<string, string>;  // Response headers
-  response: Response;               // The native fetch Response, for escape hatches
-  requestId: string;                // Unique ID for this request (for tracing/cancellation)
-  durationMs: number;               // How long the request took, end to end
+  data: T; // Parsed response body
+  status: number; // HTTP status code, e.g. 200
+  statusText: string; // HTTP status text, e.g. "OK"
+  headers: Record<string, string>; // Response headers
+  response: Response; // The native fetch Response, for escape hatches
+  requestId: string; // Unique ID for this request (for tracing/cancellation)
+  durationMs: number; // How long the request took, end to end
 }
 ```
 
@@ -258,34 +258,48 @@ This is the second argument (or third, for body-carrying methods) accepted by ev
 
 ```typescript
 interface HttpRequestOptions {
-  params?: Record<string, any>;        // Query parameters
-  headers?: Record<string, string>;    // Request headers
+  params?: Record<string, any>; // Query parameters
+  headers?: Record<string, string>; // Request headers
 
-  cache?: boolean | {                  // Cache override for this request
-    enabled?: boolean;
-    ttl?: number;
-    strategy?: "cache-first" | "network-first" | "stale-while-revalidate" | "cache-only" | "network-only";
-    keyBuilder?: (url: string, options: HttpRequestOptions) => string;
-  };
+  cache?:
+    | boolean
+    | {
+        // Cache override for this request
+        enabled?: boolean;
+        ttl?: number;
+        strategy?:
+          | "cache-first"
+          | "network-first"
+          | "stale-while-revalidate"
+          | "cache-only"
+          | "network-only";
+        keyBuilder?: (url: string, options: HttpRequestOptions) => string;
+      };
 
-  retry?: boolean | {                  // Retry override for this request
-    attempts: number;
-    strategy: "none" | "linear" | "exponential";
-    delay: number;
-    maxDelay: number;
-    statusCodes: number[];
-    shouldRetry?: (error: unknown, attempt: number) => Promise<boolean> | boolean;
-  };
+  retry?:
+    | boolean
+    | {
+        // Retry override for this request
+        attempts: number;
+        strategy: "none" | "linear" | "exponential";
+        delay: number;
+        maxDelay: number;
+        statusCodes: number[];
+        shouldRetry?: (
+          error: unknown,
+          attempt: number,
+        ) => Promise<boolean> | boolean;
+      };
 
-  timeout?: number;                    // Timeout override (ms)
-  deduplicate?: boolean;               // Collapse concurrent identical requests into one
-  csrf?: boolean;                      // Disable CSRF injection for this request
-  requestId?: string;                  // Custom ID, useful for cancellation/tracing
+  timeout?: number; // Timeout override (ms)
+  deduplicate?: boolean; // Collapse concurrent identical requests into one
+  csrf?: boolean; // Disable CSRF injection for this request
+  requestId?: string; // Custom ID, useful for cancellation/tracing
 
-  transformer?: (data: any, response: HttpResponse<any>) => any;  // Post-process response data
-  validateResponse?: (data: any) => boolean;                       // Reject responses that don't match
+  transformer?: (data: any, response: HttpResponse<any>) => any; // Post-process response data
+  validateResponse?: (data: any) => boolean; // Reject responses that don't match
 
-  polling?: Partial<PollingConfig>;    // Only used by http.poll()
+  polling?: Partial<PollingConfig>; // Only used by http.poll()
 }
 ```
 
@@ -311,7 +325,7 @@ Understanding the order in which rhttp.io processes a request will save you a lo
 13. The promise resolves (or rejects) back to your code
 ```
 
-Keep this order in mind: for example, a response interceptor can already see a *cached* response (cache hits still flow through step 12), but it will never see a request that the circuit breaker rejected before step 8 — that error short-circuits straight to step 12 from the error path.
+Keep this order in mind: for example, a response interceptor can already see a _cached_ response (cache hits still flow through step 12), but it will never see a request that the circuit breaker rejected before step 8 — that error short-circuits straight to step 12 from the error path.
 
 ---
 
@@ -410,23 +424,23 @@ const http = createHttp({
 
 ### Field-by-Field Reference
 
-| Option | Type | Default | Description |
-|---|---|---|---|
-| `baseURL` | `string` | `""` | Prepended to every relative URL you pass to a request method. |
-| `timeout` | `number` (ms) | `0` (no timeout) | Aborts the request and throws `TimeoutError` if exceeded. |
-| `defaultHeaders` | `Record<string, string>` | `{}` | Merged into every outgoing request; per-request `headers` take priority on conflict. |
-| `cache` | `CacheConfig` | disabled | See [Section 5](#5-caching). |
-| `etag` | `EtagConfig` | disabled | See [5.5 ETag Support](#55-etag-support). |
-| `retry` | `RetryConfig` | disabled | See [Section 6.1](#61-retry-logic). |
-| `auth` | `AuthConfig` | none | See [Section 7](#7-authentication). |
-| `csrf` | `CsrfConfig` | disabled | See [Section 8](#8-csrf-protection). |
-| `observability` | `ObservabilityConfig` | disabled | See [Section 12](#12-observability). |
-| `circuitBreaker` | `CircuitBreakerConfig` | disabled | See [Section 6.2](#62-circuit-breaker). |
-| `requestPool` | `RequestPoolConfig` | disabled | See [Section 6.4](#64-request-pooling). |
-| `requestValidator` | `(url, options) => boolean` | none | See [Section 9.1](#91-request-validation). |
-| `responseTransformer` | `(data, response) => any` | none | See [Section 9.3](#93-response-transformers). |
-| `hooks` | `HooksConfig` | none | See [Section 10.2](#102-lifecycle-hooks). |
-| `requestContext` | `() => Request \| undefined` | none | Used with `auth.forwardCookies` for SSR. See [Section 7.4](#74-cookie-based-sessions-ssr). |
+| Option                | Type                         | Default          | Description                                                                                |
+| --------------------- | ---------------------------- | ---------------- | ------------------------------------------------------------------------------------------ |
+| `baseURL`             | `string`                     | `""`             | Prepended to every relative URL you pass to a request method.                              |
+| `timeout`             | `number` (ms)                | `0` (no timeout) | Aborts the request and throws `TimeoutError` if exceeded.                                  |
+| `defaultHeaders`      | `Record<string, string>`     | `{}`             | Merged into every outgoing request; per-request `headers` take priority on conflict.       |
+| `cache`               | `CacheConfig`                | disabled         | See [Section 5](#5-caching).                                                               |
+| `etag`                | `EtagConfig`                 | disabled         | See [5.5 ETag Support](#55-etag-support).                                                  |
+| `retry`               | `RetryConfig`                | disabled         | See [Section 6.1](#61-retry-logic).                                                        |
+| `auth`                | `AuthConfig`                 | none             | See [Section 7](#7-authentication).                                                        |
+| `csrf`                | `CsrfConfig`                 | disabled         | See [Section 8](#8-csrf-protection).                                                       |
+| `observability`       | `ObservabilityConfig`        | disabled         | See [Section 12](#12-observability).                                                       |
+| `circuitBreaker`      | `CircuitBreakerConfig`       | disabled         | See [Section 6.2](#62-circuit-breaker).                                                    |
+| `requestPool`         | `RequestPoolConfig`          | disabled         | See [Section 6.4](#64-request-pooling).                                                    |
+| `requestValidator`    | `(url, options) => boolean`  | none             | See [Section 9.1](#91-request-validation).                                                 |
+| `responseTransformer` | `(data, response) => any`    | none             | See [Section 9.3](#93-response-transformers).                                              |
+| `hooks`               | `HooksConfig`                | none             | See [Section 10.2](#102-lifecycle-hooks).                                                  |
+| `requestContext`      | `() => Request \| undefined` | none             | Used with `auth.forwardCookies` for SSR. See [Section 7.4](#74-cookie-based-sessions-ssr). |
 
 ---
 
@@ -516,7 +530,7 @@ const response = await http.get("/items");
 const { requestId } = response;
 
 http.cancel(requestId); // cancel one specific request
-http.cancel();          // cancel every active request
+http.cancel(); // cancel every active request
 ```
 
 You can also assign your own ID up front, which is handy when you want to cancel a request you haven't awaited yet:
@@ -535,9 +549,9 @@ http.cancel("search-query");
 
 ```typescript
 interface PollingConfig {
-  interval: number;                              // Delay between polls (ms)
-  maxAttempts: number;                           // Give up after this many polls
-  stopCondition: (response: HttpResponse<any>) => boolean;  // Return true to stop
+  interval: number; // Delay between polls (ms)
+  maxAttempts: number; // Give up after this many polls
+  stopCondition: (response: HttpResponse<any>) => boolean; // Return true to stop
 }
 ```
 
@@ -563,13 +577,13 @@ Caching avoids re-fetching data your app already has and still considers fresh. 
 
 ### 5.2 The Five Cache Strategies
 
-| Strategy | Behavior | Good for |
-|---|---|---|
-| `cache-first` | Use the cache if a fresh entry exists; otherwise hit the network and store the result. | Data that rarely changes (e.g. countries list, app config). |
-| `network-first` | Always try the network first; fall back to the cache only if the network call fails. | Data that should be fresh whenever possible, but tolerable stale during an outage. |
-| `stale-while-revalidate` | Return the cached value immediately (even if stale), then refresh it in the background for next time. | Dashboards/feeds where instant paint matters more than perfect freshness. |
-| `cache-only` | Only ever read the cache; never hits the network. Throws/returns an error if nothing is cached. | Offline-first views, or reading data you know was prefetched elsewhere. |
-| `network-only` | Never reads or writes the cache. | Mutating reads, or any endpoint where caching would be actively wrong (e.g. a one-time-use token). |
+| Strategy                 | Behavior                                                                                              | Good for                                                                                           |
+| ------------------------ | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `cache-first`            | Use the cache if a fresh entry exists; otherwise hit the network and store the result.                | Data that rarely changes (e.g. countries list, app config).                                        |
+| `network-first`          | Always try the network first; fall back to the cache only if the network call fails.                  | Data that should be fresh whenever possible, but tolerable stale during an outage.                 |
+| `stale-while-revalidate` | Return the cached value immediately (even if stale), then refresh it in the background for next time. | Dashboards/feeds where instant paint matters more than perfect freshness.                          |
+| `cache-only`             | Only ever read the cache; never hits the network. Throws/returns an error if nothing is cached.       | Offline-first views, or reading data you know was prefetched elsewhere.                            |
+| `network-only`           | Never reads or writes the cache.                                                                      | Mutating reads, or any endpoint where caching would be actively wrong (e.g. a one-time-use token). |
 
 ```typescript
 const http = createHttp({
@@ -653,7 +667,7 @@ setInterval(() => http.clearCache(), 600_000); // every 10 minutes
 
 ### 5.5 ETag Support
 
-ETags let the *server* tell you "nothing changed" without sending the body again, saving bandwidth on large, infrequently-changing payloads.
+ETags let the _server_ tell you "nothing changed" without sending the body again, saving bandwidth on large, infrequently-changing payloads.
 
 ```typescript
 const http = createHttp({
@@ -672,7 +686,7 @@ const { data: users1 } = await http.get("/users");
 const { data: users2 } = await http.get("/users");
 ```
 
-ETag support and the `cache` option are complementary, not redundant: `cache` avoids the request entirely within its TTL window, while ETags optimize the *bytes transferred* on requests that do go out (e.g. once your TTL expires, or for `network-first`/`stale-while-revalidate` strategies that always touch the network).
+ETag support and the `cache` option are complementary, not redundant: `cache` avoids the request entirely within its TTL window, while ETags optimize the _bytes transferred_ on requests that do go out (e.g. once your TTL expires, or for `network-first`/`stale-while-revalidate` strategies that always touch the network).
 
 ### 5.6 Cache vs. Deduplication
 
@@ -704,31 +718,37 @@ You'll typically want both enabled together: deduplication protects you from req
 const http = createHttp({
   retry: {
     attempts: 3,
-    strategy: "exponential",     // "exponential" | "linear" | "none"
-    delay: 300,                   // initial delay, in ms
-    maxDelay: 30_000,             // ceiling for any single delay
+    strategy: "exponential", // "exponential" | "linear" | "none"
+    delay: 300, // initial delay, in ms
+    maxDelay: 30_000, // ceiling for any single delay
     statusCodes: [408, 429, 500, 502, 503, 504],
   },
 });
 
 // Per-request override
 await http.get("/items", {
-  retry: { attempts: 5, strategy: "exponential", delay: 100, maxDelay: 5_000, statusCodes: [503] },
+  retry: {
+    attempts: 5,
+    strategy: "exponential",
+    delay: 100,
+    maxDelay: 5_000,
+    statusCodes: [503],
+  },
 });
 
 // Disable retries for one call (e.g. a non-idempotent POST you never want retried silently)
 await http.post("/payments", body, { retry: false });
 ```
 
-**Backoff formula.** With `strategy: "exponential"`, the delay before attempt *n* is `min(delay * 2^(n-1), maxDelay)`. With `delay: 300` and `maxDelay: 30_000`:
+**Backoff formula.** With `strategy: "exponential"`, the delay before attempt _n_ is `min(delay * 2^(n-1), maxDelay)`. With `delay: 300` and `maxDelay: 30_000`:
 
-| Attempt | Delay |
-|---|---|
-| 1 | 300ms |
-| 2 | 600ms |
-| 3 | 1200ms |
-| 4 | 2400ms |
-| ... | ... up to the 30,000ms ceiling |
+| Attempt | Delay                          |
+| ------- | ------------------------------ |
+| 1       | 300ms                          |
+| 2       | 600ms                          |
+| 3       | 1200ms                         |
+| 4       | 2400ms                         |
+| ...     | ... up to the 30,000ms ceiling |
 
 > ⚠️ **A note on the name "jitter."** Earlier drafts of this documentation called this "exponential backoff with jitter," but the formula above is pure exponential backoff — it contains no randomness. True jitter staggers retries from many clients so they don't all retry at the exact same moment and hammer your server in synchronized waves. If you need that, add randomness yourself via `shouldRetry`:
 
@@ -790,9 +810,9 @@ The breaker has three states:
 const http = createHttp({
   circuitBreaker: {
     enabled: true,
-    failureThreshold: 5,   // open after 5 consecutive failures
-    successThreshold: 2,   // close again after 2 consecutive successes in half-open
-    timeout: 60_000,       // wait 60s before trying half-open
+    failureThreshold: 5, // open after 5 consecutive failures
+    successThreshold: 2, // close again after 2 consecutive successes in half-open
+    timeout: 60_000, // wait 60s before trying half-open
   },
 });
 
@@ -821,12 +841,14 @@ const breaker = new CircuitBreaker({
   timeout: 60_000,
 });
 
-const result = await breaker.execute(() => fetch("https://flaky-service.example.com"));
+const result = await breaker.execute(() =>
+  fetch("https://flaky-service.example.com"),
+);
 ```
 
 ### 6.3 Rate Limiting
 
-While the circuit breaker reacts to failures, a rate limiter proactively *prevents* you from exceeding a quota in the first place — useful for respecting a third-party API's rate limits before they ever return a 429.
+While the circuit breaker reacts to failures, a rate limiter proactively _prevents_ you from exceeding a quota in the first place — useful for respecting a third-party API's rate limits before they ever return a 429.
 
 rhttp.io's rate limiter uses the **token bucket** algorithm: tokens refill at `tokensPerSecond`, the bucket holds at most `maxBurst` tokens, and every request consumes one or more tokens (`weight`) before it's allowed to proceed.
 
@@ -856,7 +878,7 @@ http.interceptors.request.use(async (config) => {
 
 ### 6.4 Request Pooling
 
-Request pooling caps how many requests are *in flight at once* from this client, queueing the rest. This protects a backend (or a rate-limited third-party API) from being overwhelmed by a burst of calls your own code issues all at once — for example, rendering 50 thumbnails on a page.
+Request pooling caps how many requests are _in flight at once_ from this client, queueing the rest. This protects a backend (or a rate-limited third-party API) from being overwhelmed by a burst of calls your own code issues all at once — for example, rendering 50 thumbnails on a page.
 
 ```typescript
 const http = createHttp({
@@ -881,12 +903,12 @@ console.log(`Queued: ${stats.queueLength}`);
 
 These four mechanisms compose well together, and each solves a distinct problem:
 
-| Mechanism | Question it answers | Protects |
-|---|---|---|
-| Retry | "Should I try this exact request again?" | The current caller, against transient failures. |
-| Circuit breaker | "Is this service healthy enough to even try?" | The struggling backend, and your app's own thread/connection budget. |
-| Rate limiter | "Am I about to exceed a quota?" | Your relationship with a rate-limited API. |
-| Request pool | "Am I sending too many requests at once, right now?" | Both ends, against self-inflicted bursts. |
+| Mechanism       | Question it answers                                  | Protects                                                             |
+| --------------- | ---------------------------------------------------- | -------------------------------------------------------------------- |
+| Retry           | "Should I try this exact request again?"             | The current caller, against transient failures.                      |
+| Circuit breaker | "Is this service healthy enough to even try?"        | The struggling backend, and your app's own thread/connection budget. |
+| Rate limiter    | "Am I about to exceed a quota?"                      | Your relationship with a rate-limited API.                           |
+| Request pool    | "Am I sending too many requests at once, right now?" | Both ends, against self-inflicted bursts.                            |
 
 A reasonable production default combines all four:
 
@@ -895,7 +917,12 @@ const http = createHttp({
   baseURL: "https://api.example.com",
   timeout: 10_000,
   retry: { attempts: 3, strategy: "exponential", delay: 300, maxDelay: 10_000 },
-  circuitBreaker: { enabled: true, failureThreshold: 5, successThreshold: 2, timeout: 30_000 },
+  circuitBreaker: {
+    enabled: true,
+    failureThreshold: 5,
+    successThreshold: 2,
+    timeout: 30_000,
+  },
   requestPool: { enabled: true, maxConcurrent: 10 },
 });
 ```
@@ -940,9 +967,13 @@ const http = createHttp({
     scheme: "Bearer",
     getToken: async () => {
       let token = localStorage.getItem("access_token");
-      const expiresAt = parseInt(localStorage.getItem("access_token_expires_at") ?? "0", 10);
+      const expiresAt = parseInt(
+        localStorage.getItem("access_token_expires_at") ?? "0",
+        10,
+      );
 
-      if (Date.now() > expiresAt - 60_000) { // refresh 60s before expiry
+      if (Date.now() > expiresAt - 60_000) {
+        // refresh 60s before expiry
         const refreshToken = localStorage.getItem("refresh_token");
         const response = await fetch("/auth/refresh", {
           method: "POST",
@@ -960,7 +991,7 @@ const http = createHttp({
 });
 ```
 
-This pattern refreshes proactively, *before* a request ever fails — which avoids the extra round trip that reactive (401-triggered) refreshing costs. The downside is it can't react to a token being revoked server-side ahead of its stated expiry; combine it with the reactive approach below if that matters to you.
+This pattern refreshes proactively, _before_ a request ever fails — which avoids the extra round trip that reactive (401-triggered) refreshing costs. The downside is it can't react to a token being revoked server-side ahead of its stated expiry; combine it with the reactive approach below if that matters to you.
 
 ### 7.3 Automatic Token Refresh
 
@@ -1000,7 +1031,7 @@ See [Section 19](#19-troubleshooting) for how to avoid an infinite refresh loop 
 
 ### 7.4 Cookie-Based Sessions (SSR)
 
-When your backend issues an `httpOnly` session cookie, your server-rendering layer needs to forward the *incoming* request's cookies to its own outgoing API calls — the browser never sees this exchange, so it can't do it for you. `createServerHttp` plus `requestContext` handles this:
+When your backend issues an `httpOnly` session cookie, your server-rendering layer needs to forward the _incoming_ request's cookies to its own outgoing API calls — the browser never sees this exchange, so it can't do it for you. `createServerHttp` plus `requestContext` handles this:
 
 ```typescript
 import { createServerHttp } from "rhttp.io/server";
@@ -1014,10 +1045,12 @@ const http = createServerHttp({
   requestContext: () => getRequest(), // how rhttp.io finds "the incoming request" — enabled by default on TanStack Start
 });
 
-export const fetchProtectedData = createServerFn({ method: "GET" }).handler(async () => {
-  // Cookies from the original browser request are forwarded automatically.
-  return http.get("/protected-data");
-});
+export const fetchProtectedData = createServerFn({ method: "GET" }).handler(
+  async () => {
+    // Cookies from the original browser request are forwarded automatically.
+    return http.get("/protected-data");
+  },
+);
 ```
 
 The same pattern adapts to other frameworks by changing what `requestContext` returns — for example, in a Next.js Route Handler you'd return the `Request` object passed into your handler.
@@ -1033,18 +1066,18 @@ const http = createClientHttp({
   baseURL: "https://api.example.com",
   csrf: {
     enabled: true,
-    fetchEndpoint: "/api/csrf",     // where to GET a fresh token
-    cookieName: "csrf-token",       // cookie your server sets alongside the token
-    headerName: "X-CSRF-Token",     // header rhttp.io will attach
-    methods: ["POST", "PUT", "PATCH", "DELETE"],  // methods that require the token
-    prefetch: true,                 // fetch a token immediately on client creation
+    fetchEndpoint: "/api/csrf", // where to GET a fresh token
+    cookieName: "csrf-token", // cookie your server sets alongside the token
+    headerName: "X-CSRF-Token", // header rhttp.io will attach
+    methods: ["POST", "PUT", "PATCH", "DELETE"], // methods that require the token
+    prefetch: true, // fetch a token immediately on client creation
   },
 });
 
 await http.post("/items", { name: "test" }); // X-CSRF-Token attached automatically
 ```
 
-`prefetch: true` trades a small amount of startup latency (one extra request) for zero latency on the *first* mutation; with `prefetch: false`, the token is instead fetched lazily on the first request that needs it.
+`prefetch: true` trades a small amount of startup latency (one extra request) for zero latency on the _first_ mutation; with `prefetch: false`, the token is instead fetched lazily on the first request that needs it.
 
 To bypass CSRF for one call — for instance, an endpoint that's intentionally exempt — override it per request:
 
@@ -1078,14 +1111,15 @@ const http = createHttp({
 
 ```typescript
 const { data } = await http.get<User>("/users/123", {
-  validateResponse: (data) => data && typeof data.id === "number" && typeof data.name === "string",
+  validateResponse: (data) =>
+    data && typeof data.id === "number" && typeof data.name === "string",
 });
 // Throws HttpError("Response validation failed") if the function returns false
 ```
 
 ### 9.3 Response Transformers
 
-Transformers reshape response data after it's parsed. They can be defined globally (run on every response) and/or per-request (run *after* the global one, letting you layer endpoint-specific logic on top of app-wide conventions).
+Transformers reshape response data after it's parsed. They can be defined globally (run on every response) and/or per-request (run _after_ the global one, letting you layer endpoint-specific logic on top of app-wide conventions).
 
 ```typescript
 const http = createHttp({
@@ -1123,7 +1157,9 @@ const UserSchema = z.object({
   email: z.string().email(),
 });
 
-const http = withSchemaValidation(createHttp({ baseURL: "https://api.example.com" }));
+const http = withSchemaValidation(
+  createHttp({ baseURL: "https://api.example.com" }),
+);
 
 const { data: user } = await http.get("/user", {
   schema: UserSchema,
@@ -1131,7 +1167,7 @@ const { data: user } = await http.get("/user", {
 });
 ```
 
-> 💡 Prefer `schema` over `validateResponse` whenever you want the response's TypeScript type to be *derived from* the validation rule itself, rather than asserted separately. Use `validateResponse` for quick one-off sanity checks where pulling in Zod isn't worth it.
+> 💡 Prefer `schema` over `validateResponse` whenever you want the response's TypeScript type to be _derived from_ the validation rule itself, rather than asserted separately. Use `validateResponse` for quick one-off sanity checks where pulling in Zod isn't worth it.
 
 ---
 
@@ -1268,14 +1304,14 @@ http.use(analyticsPlugin);
 
 ### 10.4 Which One Should I Use?
 
-| You want to... | Use |
-|---|---|
-| Modify outgoing headers, body, or query params | Request **interceptor** |
-| Unwrap an envelope, normalize an error, redirect on 401 | Response **interceptor** |
-| Log/track a request without touching its data | **Hook** |
-| Ship a reusable bundle of behavior across projects | **Plugin** |
-| Reject specific requests before they're sent | `requestValidator` ([9.1](#91-request-validation)) |
-| Reshape response data, app-wide | `responseTransformer` ([9.3](#93-response-transformers)) |
+| You want to...                                          | Use                                                      |
+| ------------------------------------------------------- | -------------------------------------------------------- |
+| Modify outgoing headers, body, or query params          | Request **interceptor**                                  |
+| Unwrap an envelope, normalize an error, redirect on 401 | Response **interceptor**                                 |
+| Log/track a request without touching its data           | **Hook**                                                 |
+| Ship a reusable bundle of behavior across projects      | **Plugin**                                               |
+| Reject specific requests before they're sent            | `requestValidator` ([9.1](#91-request-validation))       |
+| Reshape response data, app-wide                         | `responseTransformer` ([9.3](#93-response-transformers)) |
 
 ---
 
@@ -1294,13 +1330,13 @@ try {
   await http.get("/endpoint");
 } catch (error) {
   if (error instanceof HttpError) {
-    console.log(error.status);      // 404
-    console.log(error.statusText);  // "Not Found"
-    console.log(error.data);        // parsed error response body
-    console.log(error.headers);     // response headers
-    console.log(error.requestId);   // for tracing/cancellation
-    console.log(error.durationMs);  // how long it took to fail
-    console.log(error.url);         // the request URL
+    console.log(error.status); // 404
+    console.log(error.statusText); // "Not Found"
+    console.log(error.data); // parsed error response body
+    console.log(error.headers); // response headers
+    console.log(error.requestId); // for tracing/cancellation
+    console.log(error.durationMs); // how long it took to fail
+    console.log(error.url); // the request URL
   }
 }
 ```
@@ -1438,7 +1474,9 @@ const history = http.getHistory();
 // Array<{ requestId, url, method, status, durationMs, timestamp }>
 
 history.forEach((entry) => {
-  console.log(`${entry.method} ${entry.url} - ${entry.status} (${entry.durationMs}ms)`);
+  console.log(
+    `${entry.method} ${entry.url} - ${entry.status} (${entry.durationMs}ms)`,
+  );
 });
 
 const failed = history.filter((r) => r.status >= 400);
@@ -1522,7 +1560,7 @@ function CreatePost() {
 }
 ```
 
-> ⚠️ **Avoid double caching.** TanStack Query already caches query results in memory. If you also enable rhttp.io's own `cache` option on the same request, you end up with two independent caches that can fall out of sync (e.g. `invalidateQueries` clears TanStack's cache but not rhttp.io's). The simplest rule: when a request goes through `withReact`'s `.query()`, let TanStack Query own caching, and set `cache: false` (or leave it disabled) on the rhttp.io side. Reserve rhttp.io's `cache` config for requests made *outside* of React Query — e.g. inside server functions, background jobs, or non-React code paths.
+> ⚠️ **Avoid double caching.** TanStack Query already caches query results in memory. If you also enable rhttp.io's own `cache` option on the same request, you end up with two independent caches that can fall out of sync (e.g. `invalidateQueries` clears TanStack's cache but not rhttp.io's). The simplest rule: when a request goes through `withReact`'s `.query()`, let TanStack Query own caching, and set `cache: false` (or leave it disabled) on the rhttp.io side. Reserve rhttp.io's `cache` config for requests made _outside_ of React Query — e.g. inside server functions, background jobs, or non-React code paths.
 
 ---
 
@@ -1629,7 +1667,7 @@ const realtimeClient = createRealtimeClient({
 ```typescript
 const realtimeClient = createRealtimeClient({
   url: "https://ws.example.com",
-  rooms: { autoRejoin: true },          // re-join rooms automatically after a reconnect
+  rooms: { autoRejoin: true }, // re-join rooms automatically after a reconnect
   offlineQueue: { enabled: true, maxSize: 100 },
 });
 
@@ -1639,7 +1677,7 @@ await realtimeClient.joinRoom("notifications");
 // Emitted while offline: queued, then flushed in order once reconnected
 realtimeClient.emit("message", { text: "Hello" });
 
-console.log(realtimeClient.getRooms());       // ["chat:general", "notifications"]
+console.log(realtimeClient.getRooms()); // ["chat:general", "notifications"]
 console.log(realtimeClient.getQueueLength()); // 0 if connected, N if currently queued
 ```
 
@@ -1674,11 +1712,11 @@ function App() {
 
 `RealtimeProvider` makes the client available to any descendant via three hooks:
 
-| Hook | Returns |
-|---|---|
-| `useSocketClient()` | The raw client instance, for calling `.emit()`, `.joinRoom()`, etc. |
+| Hook                             | Returns                                                                                                   |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `useSocketClient()`              | The raw client instance, for calling `.emit()`, `.joinRoom()`, etc.                                       |
 | `useSocketEvent(event, handler)` | Subscribes `handler` to `event` for the lifetime of the component; unsubscribes automatically on unmount. |
-| `useConnectionState()` | `{ connected: boolean }`, re-rendering your component as the socket connects/disconnects. |
+| `useConnectionState()`           | `{ connected: boolean }`, re-rendering your component as the socket connects/disconnects.                 |
 
 ```tsx
 function ChatBox() {
@@ -1698,7 +1736,9 @@ function ChatBox() {
     <div>
       <p>Status: {connected ? "Connected" : "Disconnected"}</p>
       <ul>
-        {messages.map((m, i) => <li key={i}>{m}</li>)}
+        {messages.map((m, i) => (
+          <li key={i}>{m}</li>
+        ))}
       </ul>
       <button onClick={() => sendMessage("Hello")}>Send</button>
     </div>
@@ -1746,7 +1786,7 @@ const compression = createCompressionMiddleware({
   enabled: true,
   algorithm: "gzip",
   threshold: 1024, // only compress bodies larger than 1KB
-  level: 6,        // 1 (fastest) – 9 (smallest), 6 is a balanced default
+  level: 6, // 1 (fastest) – 9 (smallest), 6 is a balanced default
 });
 
 http.use(compression);
@@ -1805,11 +1845,15 @@ async function uploadFile(file: File) {
   formData.append("file", file);
   formData.append("description", "My file");
 
-  const { data } = await http.post<FormData, { url: string }>("/upload", formData, {
-    // Don't set Content-Type yourself — the browser sets it (with the correct
-    // multipart boundary) when the body is a FormData instance.
-    timeout: 60_000, // large files need more time
-  });
+  const { data } = await http.post<FormData, { url: string }>(
+    "/upload",
+    formData,
+    {
+      // Don't set Content-Type yourself — the browser sets it (with the correct
+      // multipart boundary) when the body is a FormData instance.
+      timeout: 60_000, // large files need more time
+    },
+  );
 
   return data.url;
 }
@@ -1819,7 +1863,9 @@ async function uploadFile(file: File) {
 
 ```typescript
 async function downloadFile(filename: string) {
-  const response = await http.customFetch<Blob>(`/files/${filename}`, { method: "GET" });
+  const response = await http.customFetch<Blob>(`/files/${filename}`, {
+    method: "GET",
+  });
 
   const blob = response.data;
   const url = URL.createObjectURL(blob);
@@ -1843,7 +1889,12 @@ const http = createHttp({
   timeout: 10_000,
   cache: { enabled: true, ttl: 30_000, strategy: "cache-first" },
   retry: { attempts: 3, strategy: "exponential", delay: 300, maxDelay: 10_000 },
-  circuitBreaker: { enabled: true, failureThreshold: 5, successThreshold: 2, timeout: 30_000 },
+  circuitBreaker: {
+    enabled: true,
+    failureThreshold: 5,
+    successThreshold: 2,
+    timeout: 30_000,
+  },
   observability: { logger: true, tracing: true, metrics: true },
   auth: { getToken: async () => localStorage.getItem("access_token") },
 });
@@ -1885,15 +1936,15 @@ const http = createHttp({ baseURL: "https://api.example.com" });
 const { data } = await http.get("/items");
 ```
 
-| Axios | rhttp.io equivalent |
-|---|---|
-| `axios.create({ baseURL })` | `createHttp({ baseURL })` |
-| `axios.interceptors.request.use(...)` | `http.interceptors.request.use(...)` |
-| `axios-retry` package | Built-in `retry` config |
-| Manual `AbortController` wiring | `requestId` + `http.cancel(requestId)` |
-| A separate cache wrapper (e.g. `axios-cache-adapter`) | Built-in `cache` config |
-| `error.response.status` | `error.status` (on `HttpError`) |
-| `error.response.data` | `error.data` (on `HttpError`) |
+| Axios                                                 | rhttp.io equivalent                    |
+| ----------------------------------------------------- | -------------------------------------- |
+| `axios.create({ baseURL })`                           | `createHttp({ baseURL })`              |
+| `axios.interceptors.request.use(...)`                 | `http.interceptors.request.use(...)`   |
+| `axios-retry` package                                 | Built-in `retry` config                |
+| Manual `AbortController` wiring                       | `requestId` + `http.cancel(requestId)` |
+| A separate cache wrapper (e.g. `axios-cache-adapter`) | Built-in `cache` config                |
+| `error.response.status`                               | `error.status` (on `HttpError`)        |
+| `error.response.data`                                 | `error.data` (on `HttpError`)          |
 
 ### 17.2 From Native Fetch
 
@@ -1946,7 +1997,7 @@ await http.get("/endpoint", { timeout: 10_000 }); // per-request override
 
 **Symptom:** `Access to fetch at '...' has been blocked by CORS policy`.
 
-**Cause:** this is a server-side configuration issue — no client-side option fixes it, since the browser is enforcing a policy the *server* must opt into.
+**Cause:** this is a server-side configuration issue — no client-side option fixes it, since the browser is enforcing a policy the _server_ must opt into.
 
 **Fix:** ensure the server sends the right headers:
 
@@ -2059,7 +2110,7 @@ Not by default — the built-in cache is in-memory. For caching that survives a 
 Yes, that's exactly what `createHttp` (the universal entry point) is for. Use `createServerHttp`/`createClientHttp` only when you specifically need their environment-only behavior (cookie forwarding, CSRF prefetch).
 
 **What happens if both `retry` and `circuitBreaker` are enabled and a request keeps failing?**
-Retries happen first, on the current request. If failures accumulate *across* requests past `failureThreshold`, the breaker opens — at which point *subsequent* requests are rejected immediately, without exhausting their own retries against an already-known-unhealthy service.
+Retries happen first, on the current request. If failures accumulate _across_ requests past `failureThreshold`, the breaker opens — at which point _subsequent_ requests are rejected immediately, without exhausting their own retries against an already-known-unhealthy service.
 
 **Is TypeScript required?**
 No — rhttp.io works fine from plain JavaScript. You simply lose the compile-time checking on body/response shapes that the generics provide.

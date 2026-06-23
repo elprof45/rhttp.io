@@ -2,88 +2,11 @@
  * HTTP.io Extensions - Additional Features
  *
  * Provides optional extensions for specialized use cases:
- * - GraphQL support
  * - Schema validation (Zod)
  * - Request compression
  * - Enhanced error handling
+ * - Adaptive retry strategies
  */
-
-import type { HttpResponse } from "./types";
-
-// ─────────────────────────────────────────────────────────────────────────────
-// GraphQL Extension
-// ─────────────────────────────────────────────────────────────────────────────
-
-export interface GraphQLRequest {
-  query: string;
-  variables?: Record<string, any>;
-  operationName?: string;
-}
-
-export interface GraphQLResponse<T = any> {
-  data?: T;
-  errors?: Array<{
-    message: string;
-    locations?: Array<{ line: number; column: number }>;
-    path?: string[];
-    extensions?: Record<string, any>;
-  }>;
-  extensions?: Record<string, any>;
-}
-
-/**
- * GraphQL-specific error with full error context
- */
-export class GraphQLError extends Error {
-  constructor(
-    message: string,
-    public errors: Array<{
-      message: string;
-      locations?: Array<{ line: number; column: number }>;
-      path?: string[];
-      extensions?: Record<string, any>;
-    }>
-  ) {
-    super(message);
-    this.name = "GraphQLError";
-  }
-}
-
-/**
- * Create a GraphQL client wrapper with type-safe query/mutation support
- */
-export function withGraphQL(http: any, endpoint: string = "/graphql") {
-  return {
-    async query<T = any>(request: GraphQLRequest): Promise<T> {
-      const response = (await http.post(endpoint, request)) as HttpResponse<GraphQLResponse<T>>;
-
-      if (response.data.errors && response.data.errors.length > 0) {
-        throw new GraphQLError(
-          response.data.errors[0]?.message || "GraphQL error",
-          response.data.errors
-        );
-      }
-
-      const data = response.data.data;
-      if (data && typeof data === "object") {
-        const keys = Object.keys(data);
-        if (keys.length === 1 && keys[0]) {
-          return (data as any)[keys[0]] as T;
-        }
-      }
-
-      return data as T;
-    },
-
-    async mutation<T = any>(request: GraphQLRequest): Promise<T> {
-      return this.query<T>(request);
-    },
-
-    async subscribe<T = any>(request: GraphQLRequest, onData: (data: T) => void) {
-      throw new Error("GraphQL subscriptions require WebSocket setup");
-    },
-  };
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Schema Validation Extension
@@ -120,7 +43,9 @@ export function withSchemaValidation(http: any) {
         try {
           response.data = options.schema.parse(response.data);
         } catch (error) {
-          throw new Error(`Schema validation failed: ${(error as any).message}`);
+          throw new Error(
+            `Schema validation failed: ${(error as any).message}`,
+          );
         }
       }
 
@@ -134,7 +59,9 @@ export function withSchemaValidation(http: any) {
         try {
           response.data = options.schema.parse(response.data);
         } catch (error) {
-          throw new Error(`Schema validation failed: ${(error as any).message}`);
+          throw new Error(
+            `Schema validation failed: ${(error as any).message}`,
+          );
         }
       }
 
@@ -150,14 +77,16 @@ export function withSchemaValidation(http: any) {
 export interface CompressionConfig {
   enabled: boolean;
   algorithm: "gzip" | "deflate" | "br";
-  threshold: number;  // Minimum body size to compress (bytes)
-  level?: number;     // Compression level (1-9)
+  threshold: number; // Minimum body size to compress (bytes)
+  level?: number; // Compression level (1-9)
 }
 
 /**
  * Compress request bodies to reduce bandwidth
  */
-export function createCompressionMiddleware(config: Partial<CompressionConfig> = {}) {
+export function createCompressionMiddleware(
+  config: Partial<CompressionConfig> = {},
+) {
   const fullConfig: CompressionConfig = {
     enabled: config.enabled ?? false,
     algorithm: config.algorithm ?? "gzip",
@@ -174,9 +103,10 @@ export function createCompressionMiddleware(config: Partial<CompressionConfig> =
       }
 
       // Check body size
-      const bodyString = typeof requestConfig.body === "string"
-        ? requestConfig.body
-        : JSON.stringify(requestConfig.body);
+      const bodyString =
+        typeof requestConfig.body === "string"
+          ? requestConfig.body
+          : JSON.stringify(requestConfig.body);
 
       if (bodyString.length < fullConfig.threshold) {
         return requestConfig;
@@ -184,7 +114,9 @@ export function createCompressionMiddleware(config: Partial<CompressionConfig> =
 
       // Note: Actual compression would require a compression library
       // This is a placeholder for the structure
-      console.log(`[Compression] Would compress body of ${bodyString.length} bytes using ${fullConfig.algorithm}`);
+      console.log(
+        `[Compression] Would compress body of ${bodyString.length} bytes using ${fullConfig.algorithm}`,
+      );
 
       // In real implementation:
       // const compressed = await compress(bodyString, fullConfig.algorithm, fullConfig.level);
@@ -207,7 +139,7 @@ export interface RetryWithJitterConfig {
   attempts: number;
   initialDelay: number;
   maxDelay: number;
-  jitterFactor: number;  // 0-1, adds randomness to backoff
+  jitterFactor: number; // 0-1, adds randomness to backoff
 }
 
 /**
@@ -215,12 +147,12 @@ export interface RetryWithJitterConfig {
  */
 export function calculateRetryDelayWithJitter(
   attemptNumber: number,
-  config: RetryWithJitterConfig
+  config: RetryWithJitterConfig,
 ): number {
   // Exponential backoff
   const exponentialDelay = Math.min(
     config.initialDelay * Math.pow(2, attemptNumber - 1),
-    config.maxDelay
+    config.maxDelay,
   );
 
   // Add random jitter: delay * (1 - jitterFactor/2 to 1 + jitterFactor/2)
@@ -241,7 +173,7 @@ export class ValidationError extends Error {
   constructor(
     message: string,
     public field: string,
-    public value: any
+    public value: any,
   ) {
     super(`Validation error in ${field}: ${message}`);
     this.name = "ValidationError";
@@ -249,7 +181,10 @@ export class ValidationError extends Error {
 }
 
 export class AuthenticationError extends Error {
-  constructor(message: string, public originalError?: any) {
+  constructor(
+    message: string,
+    public originalError?: any,
+  ) {
     super(message);
     this.name = "AuthenticationError";
   }
@@ -259,7 +194,7 @@ export class RateLimitError extends Error {
   constructor(
     message: string,
     public retryAfter: number,
-    public remainingRequests: number
+    public remainingRequests: number,
   ) {
     super(message);
     this.name = "RateLimitError";
@@ -267,7 +202,10 @@ export class RateLimitError extends Error {
 }
 
 export class ConflictError extends Error {
-  constructor(message: string, public conflictingResource?: any) {
+  constructor(
+    message: string,
+    public conflictingResource?: any,
+  ) {
     super(message);
     this.name = "ConflictError";
   }
@@ -283,18 +221,16 @@ export function createErrorHandlingMiddleware() {
     onError(error: any) {
       // Handle GraphQL errors
       if (error.graphqlErrors) {
-        return error;  // Pass through, will be handled by GraphQL wrapper
+        return error; // Pass through, will be handled by GraphQL wrapper
       }
 
       // Handle rate limiting
       if (error.status === 429) {
         const retryAfter = parseInt(error.headers?.["retry-after"] || "60");
-        const remaining = parseInt(error.headers?.["x-ratelimit-remaining"] || "0");
-        return new RateLimitError(
-          "Rate limit exceeded",
-          retryAfter,
-          remaining
+        const remaining = parseInt(
+          error.headers?.["x-ratelimit-remaining"] || "0",
         );
+        return new RateLimitError("Rate limit exceeded", retryAfter, remaining);
       }
 
       // Handle authentication errors
@@ -308,7 +244,7 @@ export function createErrorHandlingMiddleware() {
         return new ValidationError(
           firstError.message,
           firstError.field,
-          firstError.value
+          firstError.value,
         );
       }
 
@@ -329,26 +265,22 @@ export function createErrorHandlingMiddleware() {
 export class RequestDeduplicator {
   private activeRequests = new Map<string, Promise<any>>();
 
-  async execute<T>(
-    key: string,
-    fn: () => Promise<T>
-  ): Promise<T> {
+  async execute<T>(key: string, fn: () => Promise<T>): Promise<T> {
     const existing = this.activeRequests.get(key);
     if (existing) {
       return existing;
     }
 
-    const promise = fn()
-      .then(
-        (result) => {
-          this.activeRequests.delete(key);
-          return result;
-        },
-        (error) => {
-          this.activeRequests.delete(key);
-          throw error;
-        }
-      );
+    const promise = fn().then(
+      (result) => {
+        this.activeRequests.delete(key);
+        return result;
+      },
+      (error) => {
+        this.activeRequests.delete(key);
+        throw error;
+      },
+    );
 
     this.activeRequests.set(key, promise);
     return promise;
@@ -371,18 +303,21 @@ export class RequestDeduplicator {
  * Track request success rates and adapt retry strategy
  */
 export class AdaptiveRetryStrategy {
-  private stats = new Map<string, {
-    successes: number;
-    failures: number;
-    lastChecked: number;
-  }>();
+  private stats = new Map<
+    string,
+    {
+      successes: number;
+      failures: number;
+      lastChecked: number;
+    }
+  >();
 
-  private windowMs = 60_000;  // 1 minute window
+  private windowMs = 60_000; // 1 minute window
 
   shouldRetry(
     url: string,
     attemptNumber: number,
-    maxAttempts: number
+    maxAttempts: number,
   ): boolean {
     const key = new URL(url, "http://localhost").pathname;
     let stat = this.stats.get(key);
@@ -458,9 +393,10 @@ export function createTimeoutMiddleware(rules: TimeoutRule[] = []) {
 
     beforeRequest(config: any) {
       for (const rule of rules) {
-        const pattern = typeof rule.pattern === "string"
-          ? new RegExp(rule.pattern)
-          : rule.pattern;
+        const pattern =
+          typeof rule.pattern === "string"
+            ? new RegExp(rule.pattern)
+            : rule.pattern;
 
         if (pattern.test(config.url)) {
           config.timeout = rule.timeout;
@@ -481,11 +417,14 @@ export function createTimeoutMiddleware(rules: TimeoutRule[] = []) {
  * Implement HTTP caching with ETags
  */
 export function createETagCacheMiddleware() {
-  const cache = new Map<string, {
-    etag: string;
-    data: any;
-    headers: Record<string, string>;
-  }>();
+  const cache = new Map<
+    string,
+    {
+      etag: string;
+      data: any;
+      headers: Record<string, string>;
+    }
+  >();
 
   return {
     name: "etag-cache",

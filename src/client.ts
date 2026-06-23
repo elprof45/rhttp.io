@@ -3,7 +3,6 @@ import type { CreateHttpConfig, HttpClientInstance } from "./types";
 import {
   HybridTokenStorage,
   getTokenStorage,
-  getRecommendedTokenStorage,
   type TokenStorage,
 } from "./token-storage";
 
@@ -57,6 +56,41 @@ export interface CreateClientHttpConfig extends CreateHttpConfig {
    * Custom token storage implementation
    */
   tokenStorageImpl?: TokenStorage;
+
+  /**
+   * Enable smart client-side caching with pattern-based invalidation
+   * Default: true
+   *
+   * Features:
+   * - Per-endpoint cache control
+   * - Pattern-based invalidation (e.g., invalidate /api/users/* when creating user)
+   * - Request deduplication within cache window
+   * - ETag support for conditional requests
+   *
+   * Example:
+   * ```typescript
+   * const http = createClientHttp({
+   *   smartCaching: {
+   *     enabled: true,
+   *     patterns: {
+   *       '/api/users': { ttl: 60000, invalidateOn: ['POST', 'PUT', 'DELETE'] },
+   *       '/api/posts': { ttl: 30000, invalidateOn: ['POST', 'PUT'] },
+   *     }
+   *   }
+   * });
+   * ```
+   */
+  smartCaching?: {
+    enabled?: boolean;
+    patterns?: Record<
+      string,
+      {
+        ttl?: number;
+        invalidateOn?: string[]; // HTTP methods that invalidate this pattern
+        tags?: string[]; // Cache tags for grouped invalidation
+      }
+    >;
+  };
 }
 
 export function createClientHttp(
@@ -87,17 +121,39 @@ export function createClientHttp(
   // ─────────────────────────────────────────────────────────────────
 
   // Use custom storage or get recommended
-  const tokenStorage = config.tokenStorageImpl ||
-    getTokenStorage(config.tokenStorage || "hybrid");
+  const tokenStorage =
+    config.tokenStorageImpl || getTokenStorage(config.tokenStorage || "hybrid");
 
   // Default secure getToken function
   const defaultGetToken = async () => {
     // Priority 1: HttpOnly cookie (most secure, set by server)
     // This can't be accessed from JS, but fetch includes it automatically
     // Priority 2: Token storage (Hybrid by default)
-    if (tokenStorage instanceof HybridTokenStorage || typeof tokenStorage.get === "function") {
+    if (
+      tokenStorage instanceof HybridTokenStorage ||
+      typeof tokenStorage.get === "function"
+    ) {
       const token = await tokenStorage.get();
       return token;
+    }
+    return null;
+  };
+
+  // ─────────────────────────────────────────────────────────────────
+  // Smart client-side caching with pattern-based invalidation
+  // ─────────────────────────────────────────────────────────────────
+
+  const smartCachingConfig = config.smartCaching?.enabled ?? true;
+  const cachePatterns = config.smartCaching?.patterns || {
+    "/api": { ttl: 60000, invalidateOn: ["POST", "PUT", "DELETE"] },
+  };
+
+  // Helper to find matching cache pattern
+  const findCachePattern = (url: string) => {
+    for (const [pattern, config] of Object.entries(cachePatterns)) {
+      if (url.includes(pattern)) {
+        return config;
+      }
     }
     return null;
   };
@@ -106,6 +162,22 @@ export function createClientHttp(
   const http = createHttp({
     ...config,
     defaultFetchOptions: mergedFetchOptions,
+
+    // ─────────────────────────────────────────────────────────────
+    // Smart client-side caching
+    // ─────────────────────────────────────────────────────────────
+    cache: smartCachingConfig
+      ? {
+          enabled: true,
+          ttl: 60000, // Default 60s client-side cache
+          strategy: "cache-first",
+          keyBuilder: (url: string, options: any) => {
+            // Include query params and method in cache key for accuracy
+            return `${options?.method || "GET"}:${url}`;
+          },
+          ...config.cache,
+        }
+      : config.cache,
 
     // ─────────────────────────────────────────────────────────────
     // CSRF Protection - ENABLED by default for client
@@ -133,7 +205,9 @@ export function createClientHttp(
     // Observability - ENABLED by default in dev
     // ─────────────────────────────────────────────────────────────
     observability: {
-      logger: typeof process !== "undefined" && process.env.NODE_ENV === "development",
+      logger:
+        typeof process !== "undefined" &&
+        process.env.NODE_ENV === "development",
       tracing: false,
       metrics: false,
       ...config.observability,

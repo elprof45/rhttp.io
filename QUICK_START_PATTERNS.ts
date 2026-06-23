@@ -1,5 +1,5 @@
 /**
- * QUICK START PATTERNS - rhttp.io v2.0
+ * QUICK START PATTERNS - rhttp.io v3.0
  * Copy-paste ready examples for common use cases
  */
 
@@ -76,8 +76,8 @@ export async function pollJobStatus(jobId: string) {
     // ✅ Poll executes immediately, returns actual result
     const response = await http.poll(`/jobs/${jobId}`, {
       polling: {
-        interval: 2_000,        // Poll every 2 seconds
-        maxAttempts: 30,        // Max 30 attempts = 1 minute total
+        interval: 2_000, // Poll every 2 seconds
+        maxAttempts: 30, // Max 30 attempts = 1 minute total
         stopCondition: (res) => {
           // Stop when job is completed or failed
           const status = res.data?.status;
@@ -193,8 +193,8 @@ export const setupCompression = (http: any) => {
       enabled: true,
       algorithms: ["gzip", "deflate"],
       minSize: 512, // Compress if > 512 bytes
-      level: 6,     // Compression level 1-9
-    })
+      level: 6, // Compression level 1-9
+    }),
   );
 };
 
@@ -354,7 +354,7 @@ export async function setupHttpClient() {
       // Error handling
       console.error("Request failed:", error);
       throw error;
-    }
+    },
   );
 
   return http;

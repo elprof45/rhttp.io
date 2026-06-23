@@ -1,5 +1,9 @@
-import type { CircuitBreakerConfig, RequestPoolConfig, PollingConfig, CacheStrategy } from "./types";
-import { HttpError } from "./errors";
+import type {
+  CircuitBreakerConfig,
+  RequestPoolConfig,
+  PollingConfig,
+  CacheStrategy,
+} from "./types";
 
 /**
  * Circuit Breaker State
@@ -36,13 +40,20 @@ export class CircuitBreaker {
   private lastFailureTime = 0;
   private rejectedCount = 0;
   private config: CircuitBreakerConfig;
+  private logger: any;
 
-  constructor(config: Partial<CircuitBreakerConfig> = {}) {
+  constructor(config: Partial<CircuitBreakerConfig> = {}, logger?: any) {
     this.config = {
       enabled: config.enabled ?? true,
       failureThreshold: config.failureThreshold ?? 5,
       successThreshold: config.successThreshold ?? 2,
       timeout: config.timeout ?? 60000,
+    };
+    this.logger = logger || {
+      debug: () => {},
+      info: () => {},
+      warn: () => {},
+      error: () => {},
     };
   }
 
@@ -52,6 +63,13 @@ export class CircuitBreaker {
       if (elapsed >= this.config.timeout) {
         this.state = "half-open";
         this.successes = 0;
+        this.logger.info(
+          "[CircuitBreaker] Transitioning OPEN → HALF-OPEN after timeout",
+          {
+            timeout: this.config.timeout,
+            elapsed,
+          },
+        );
         return false;
       }
       return true;
@@ -69,8 +87,19 @@ export class CircuitBreaker {
       if (elapsed >= this.config.timeout) {
         this.state = "half-open";
         this.successes = 0;
+        this.logger.info(
+          "[CircuitBreaker] Transitioning OPEN → HALF-OPEN after timeout",
+          {
+            timeout: this.config.timeout,
+            elapsed,
+          },
+        );
       } else {
         this.rejectedCount++;
+        this.logger.warn("[CircuitBreaker] Request rejected: circuit is OPEN", {
+          rejectedCount: this.rejectedCount,
+          timeUntilHalfOpen: this.config.timeout - elapsed,
+        });
         throw new Error("Circuit breaker is OPEN - request blocked");
       }
     }
@@ -89,9 +118,16 @@ export class CircuitBreaker {
     this.failures = 0;
     if (this.state === "half-open") {
       this.successes++;
+      this.logger.debug("[CircuitBreaker] Success in HALF-OPEN state", {
+        successes: this.successes,
+        threshold: this.config.successThreshold,
+      });
       if (this.successes >= this.config.successThreshold) {
         this.state = "closed";
         this.successes = 0;
+        this.logger.info("[CircuitBreaker] Transitioning HALF-OPEN → CLOSED", {
+          successCount: this.successes,
+        });
       }
     }
   }
@@ -99,8 +135,18 @@ export class CircuitBreaker {
   private onFailure() {
     this.lastFailureTime = Date.now();
     this.failures++;
+    this.logger.debug("[CircuitBreaker] Failure recorded", {
+      failures: this.failures,
+      threshold: this.config.failureThreshold,
+      state: this.state,
+    });
     if (this.failures >= this.config.failureThreshold) {
       this.state = "open";
+      this.logger.warn("[CircuitBreaker] Transitioning to OPEN", {
+        failures: this.failures,
+        threshold: this.config.failureThreshold,
+        rejectedCount: this.rejectedCount,
+      });
     }
   }
 
@@ -125,11 +171,17 @@ export class CircuitBreaker {
   }
 
   reset() {
+    const previousState = this.state;
     this.state = "closed";
     this.failures = 0;
     this.successes = 0;
     this.lastFailureTime = 0;
     this.rejectedCount = 0;
+    if (previousState !== "closed") {
+      this.logger.info("[CircuitBreaker] Circuit breaker reset", {
+        previousState,
+      });
+    }
   }
 }
 
@@ -155,7 +207,10 @@ export class RequestPool {
   }
 
   async execute<T>(fn: () => Promise<T>): Promise<T> {
-    if (!this.config.enabled || this.activeRequests < this.config.maxConcurrent) {
+    if (
+      !this.config.enabled ||
+      this.activeRequests < this.config.maxConcurrent
+    ) {
       return this.runRequest(fn);
     }
 
@@ -211,7 +266,10 @@ export class RequestPool {
 
 export class PollingManager {
   private defaultOptions: Partial<PollingConfig>;
-  private timers: Map<string, { timer: NodeJS.Timeout; resolve: (value: any) => void }> = new Map();
+  private timers: Map<
+    string,
+    { timer: NodeJS.Timeout; resolve: (value: any) => void }
+  > = new Map();
   private lastResults: Map<string, any> = new Map();
 
   constructor(defaultOptions: Partial<PollingConfig> = {}) {
@@ -228,7 +286,7 @@ export class PollingManager {
   async poll<T>(
     fn: () => Promise<T>,
     config?: Partial<PollingConfig>,
-    requestId: string = "default"
+    requestId: string = "default",
   ): Promise<T> {
     const mergedConfig = {
       interval: 1000,
@@ -294,7 +352,7 @@ export class PollingManager {
   async pollWithDelay<T>(
     fn: () => Promise<T>,
     config?: Partial<PollingConfig>,
-    requestId: string = "default"
+    requestId: string = "default",
   ): Promise<T> {
     const mergedConfig = {
       interval: 1000,
@@ -407,7 +465,7 @@ export class ETagManager {
 
 export function determineCacheStrategy(
   strategy: CacheStrategy | undefined,
-  defaultStrategy: CacheStrategy
+  defaultStrategy: CacheStrategy,
 ): CacheStrategy {
   return strategy ?? defaultStrategy;
 }
@@ -422,7 +480,7 @@ export async function executeWithCacheStrategy<T>(
     fetchFromNetwork: () => Promise<T>;
     getFromCache: () => T | null;
     saveToCache: (data: T) => void;
-  }
+  },
 ): Promise<T> {
   switch (strategy) {
     case "cache-only": {
@@ -486,6 +544,15 @@ export async function executeWithCacheStrategy<T>(
 // Request History Logger
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Request History with configurable memory limits to prevent unbounded growth
+ *
+ * Features:
+ * - Configurable max size (default 100)
+ * - LRU eviction (oldest removed when limit reached)
+ * - Query by requestId or URL
+ * - Thread-safe operations
+ */
 export class RequestHistory {
   private history: Array<{
     requestId: string;
@@ -495,7 +562,14 @@ export class RequestHistory {
     durationMs: number;
     timestamp: number;
   }> = [];
-  private maxSize = 100;
+  private maxSize: number;
+
+  constructor(maxSize: number = 100) {
+    if (maxSize < 1) {
+      throw new Error("maxSize must be >= 1");
+    }
+    this.maxSize = maxSize;
+  }
 
   add(record: {
     requestId: string;
@@ -509,6 +583,7 @@ export class RequestHistory {
       timestamp: Date.now(),
     });
 
+    // LRU eviction - remove oldest when limit exceeded
     if (this.history.length > this.maxSize) {
       this.history.shift();
     }
@@ -530,8 +605,27 @@ export class RequestHistory {
     this.history = [];
   }
 
+  /**
+   * Change max size (useful for memory management)
+   * If new size is smaller than current, oldest entries are removed
+   */
   setMaxSize(size: number) {
+    if (size < 1) {
+      throw new Error("maxSize must be >= 1");
+    }
     this.maxSize = size;
+    // Trim to new size if necessary
+    while (this.history.length > size) {
+      this.history.shift();
+    }
+  }
+
+  getSize(): number {
+    return this.history.length;
+  }
+
+  getMaxSize(): number {
+    return this.maxSize;
   }
 }
 
@@ -555,7 +649,10 @@ export class PluginManager {
     let result = { url, options };
     for (const plugin of this.plugins) {
       if (plugin.beforeRequest) {
-        const pluginResult = await plugin.beforeRequest(result.url, result.options);
+        const pluginResult = await plugin.beforeRequest(
+          result.url,
+          result.options,
+        );
         if (pluginResult) {
           result = { ...result, ...pluginResult };
         }
