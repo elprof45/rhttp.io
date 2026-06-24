@@ -103,7 +103,7 @@
     "dev": "tsup --watch",
     "test": "bun test",
     "lint": "tsc --noEmit",
-    "prepublishOnly": "bun run build && bun run test"
+    "prepublishOnly": "bun run build && bun run test && npm version patch"
   },
   "devDependencies": {
     "@tanstack/react-query": "^5.45.0",
