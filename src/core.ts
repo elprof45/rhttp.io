@@ -137,7 +137,8 @@ function getActiveRequest(configRequestContext?: () => any) {
     const req = requestContextStore.getStore();
     if (req) return req;
   }
-  if (configRequestContext) {
+  // Only execute requestContext on server-side (SSR)
+  if (configRequestContext && typeof window === "undefined") {
     try {
       return configRequestContext();
     } catch {
