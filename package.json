@@ -1,6 +1,6 @@
 {
   "name": "rhttp.io",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Universal HTTP client with caching, retries, circuit breaker, JWT auth, CSRF protection, and Socket.io",
   "type": "module",
   "publishConfig": {
