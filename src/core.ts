@@ -188,6 +188,12 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
     getToken: config.auth?.getToken,
   };
 
+  // Smart caching config (core-level). Disabled by default to avoid surprising behavior.
+  const smartCachingConfig = {
+    enabled: config.smartCaching?.enabled ?? false,
+    patterns: config.smartCaching?.patterns ?? {},
+  };
+
   // Setup logging helper
   const createLogger = (loggerSetting: boolean | any) => {
     if (loggerSetting === true) {
@@ -609,6 +615,39 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
         status: response.status,
         durationMs: response.durationMs,
       });
+
+      // Smart caching: invalidate patterns when configured and method matches
+      if (smartCachingConfig.enabled) {
+        try {
+          const patterns = smartCachingConfig.patterns || {};
+          const methodUpper = method.toUpperCase();
+          for (const pattern of Object.keys(patterns)) {
+            const rule = patterns[pattern] || {};
+            const invalidateOn = (rule.invalidateOn || []).map((m: string) =>
+              m.toUpperCase(),
+            );
+            if (invalidateOn.length === 0) continue;
+            if (invalidateOn.includes(methodUpper)) {
+              // Simple wildcard support: trailing '*'
+              const isWildcard = pattern.endsWith("*");
+              const normalized = isWildcard ? pattern.slice(0, -1) : pattern;
+              for (const key of Array.from(cacheMap.keys())) {
+                if (
+                  (isWildcard && key.includes(normalized)) ||
+                  (!isWildcard && key.includes(normalized))
+                ) {
+                  cacheMap.delete(key);
+                  logger.debug(
+                    `Smart cache invalidation: removed ${key} for pattern ${pattern}`,
+                  );
+                }
+              }
+            }
+          }
+        } catch (err) {
+          logger.error("Smart caching invalidation failed", err);
+        }
+      }
 
       return pluginResponse;
     })();

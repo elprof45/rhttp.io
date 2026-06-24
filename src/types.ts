@@ -259,6 +259,23 @@ export interface CreateHttpConfig {
   auth?: Partial<AuthConfig>;
 
   /**
+   * Smart caching configuration (core-level).
+   * When enabled, allows pattern-based invalidation across requests.
+   * Default: disabled (false) to avoid unexpected invalidations in simple setups.
+   */
+  smartCaching?: {
+    enabled?: boolean;
+    patterns?: Record<
+      string,
+      {
+        ttl?: number;
+        invalidateOn?: string[]; // HTTP methods that invalidate this pattern
+        tags?: string[]; // Optional tags for grouped invalidation
+      }
+    >;
+  };
+
+  /**
    * Contexte spécifique à TanStack Start (SSR) ou autre framework serveur.
    */
   requestContext?: () => any;

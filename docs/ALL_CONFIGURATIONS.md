@@ -17,6 +17,11 @@ Documentation complète de toutes les configurations pour les 4 entry points pri
 
 Le client isomorphe core, utilisable dans n'importe quel environnement.
 
+Note: `createHttp` supporte désormais une option `smartCaching` au niveau core. Elle permet
+de définir des patterns d'invalidation partagées entre requêtes. Par défaut, `smartCaching.enabled`
+est `false` dans le core pour éviter des invalidations inattendues — activez-la explicitement si
+vous souhaitez que le core gère les invalidations basées sur les méthodes HTTP.
+
 ### Signature
 
 ```typescript
@@ -415,6 +420,32 @@ interface CreateHttpConfig {
      */
     getToken?: () => Promise<string | null> | string | null;
   };
+
+  /**
+   * Refresh interceptor options (use with `createRefreshAuthInterceptor`).
+   * This interceptor is installed on `http.interceptors.response` and handles
+   * automatic token refresh and retrying failed requests when a refresh is needed.
+   */
+  // --- Refresh interceptor (not part of CreateHttpConfig directly) ---
+  // createRefreshAuthInterceptor(http, {
+  //   // Provide a custom refresh function if you need full control
+  //   refreshToken?: () => Promise<string | null> | string | null;
+  //
+  //   // Or provide an endpoint to call to refresh the token (recommended simple case)
+  //   refreshEndpoint?: string; // e.g. '/api/refresh-token'
+  //   refreshMethod?: string; // e.g. 'POST' (default)
+  //
+  //   // Prefer using the HTTP client for the refresh call (default true).
+  //   // When true the interceptor will call `client.customFetch(refreshEndpoint, { method })`.
+  //   // When false it will fall back to `client.config.fetch || globalThis.fetch`.
+  //   refreshUsingClient?: boolean;
+  //
+  //   // Callback when a new token is obtained (e.g. to persist it in storage)
+  //   onTokenRefreshed?: (newToken: string) => void | Promise<void>;
+  //
+  //   // Which status codes should trigger a refresh. Default: [401]
+  //   statusCodes?: number[];
+  // });
 
   // ========== ADVANCED FEATURES ==========
 
