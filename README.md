@@ -46,107 +46,6 @@ rhttp.io exists to replace the pile of small libraries (Axios, a retry wrapper, 
 
 ---
 
-## Table of Contents
-
-- [rhttp.io](#rhttpio)
-  - [The HTTP Client for Modern Applications](#the-http-client-for-modern-applications)
-  - [✨ Features at a Glance](#-features-at-a-glance)
-  - [Table of Contents](#table-of-contents)
-  - [1. Getting Started](#1-getting-started)
-    - [1.1 Installation](#11-installation)
-    - [1.2 Choosing an Entry Point](#12-choosing-an-entry-point)
-    - [1.3 Quick Start](#13-quick-start)
-      - [A basic GET request](#a-basic-get-request)
-      - [A typed POST request](#a-typed-post-request)
-      - [Basic error handling](#basic-error-handling)
-    - [1.4 A More Complete First Example](#14-a-more-complete-first-example)
-  - [2. Core Concepts](#2-core-concepts)
-    - [2.1 The `HttpResponse` Object](#21-the-httpresponse-object)
-    - [2.2 The `HttpRequestOptions` Object](#22-the-httprequestoptions-object)
-    - [2.3 The Request Pipeline](#23-the-request-pipeline)
-  - [3. Configuration Reference](#3-configuration-reference)
-    - [Field-by-Field Reference](#field-by-field-reference)
-  - [4. API Reference](#4-api-reference)
-    - [4.1 GET / POST / PUT / PATCH / DELETE](#41-get--post--put--patch--delete)
-    - [4.2 `customFetch`](#42-customfetch)
-    - [4.3 `batchRequests`](#43-batchrequests)
-    - [4.4 Request Cancellation](#44-request-cancellation)
-    - [4.5 Polling](#45-polling)
-  - [5. Caching](#5-caching)
-    - [5.1 Why Cache?](#51-why-cache)
-    - [5.2 The Five Cache Strategies](#52-the-five-cache-strategies)
-    - [5.3 Cache Keys](#53-cache-keys)
-    - [5.4 TTL \& Invalidation](#54-ttl--invalidation)
-    - [5.5 ETag Support](#55-etag-support)
-    - [5.6 Cache vs. Deduplication](#56-cache-vs-deduplication)
-  - [6. Resilience](#6-resilience)
-    - [6.1 Retry Logic](#61-retry-logic)
-    - [6.2 Circuit Breaker](#62-circuit-breaker)
-    - [6.3 Rate Limiting](#63-rate-limiting)
-    - [6.4 Request Pooling](#64-request-pooling)
-    - [6.5 Recommended Resilience Stack](#65-recommended-resilience-stack)
-  - [7. Authentication](#7-authentication)
-    - [7.1 Static Token](#71-static-token)
-    - [7.2 Dynamic Token](#72-dynamic-token)
-    - [7.3 Automatic Token Refresh](#73-automatic-token-refresh)
-    - [7.4 Cookie-Based Sessions (SSR)](#74-cookie-based-sessions-ssr)
-  - [8. CSRF Protection](#8-csrf-protection)
-  - [9. Validation \& Data Transformation](#9-validation--data-transformation)
-    - [9.1 Request Validation](#91-request-validation)
-    - [9.2 Response Validation](#92-response-validation)
-    - [9.3 Response Transformers](#93-response-transformers)
-    - [9.4 Schema Validation with Zod](#94-schema-validation-with-zod)
-  - [10. Interceptors, Hooks \& Plugins](#10-interceptors-hooks--plugins)
-    - [10.1 Interceptors](#101-interceptors)
-    - [10.2 Lifecycle Hooks](#102-lifecycle-hooks)
-    - [10.3 Plugins](#103-plugins)
-    - [10.4 Which One Should I Use?](#104-which-one-should-i-use)
-  - [11. Error Handling](#11-error-handling)
-    - [`HttpError`](#httperror)
-    - [`TimeoutError`](#timeouterror)
-    - [`NetworkError`](#networkerror)
-    - [Centralizing Error Handling](#centralizing-error-handling)
-  - [12. Observability](#12-observability)
-    - [12.1 Logging](#121-logging)
-    - [12.2 Tracing](#122-tracing)
-    - [12.3 Metrics](#123-metrics)
-    - [12.4 Request History](#124-request-history)
-    - [12.5 Request Profiling](#125-request-profiling)
-  - [13. React Integration](#13-react-integration)
-  - [14. Realtime: Socket.io Client](#14-realtime-socketio-client)
-    - [14.1 Setup \& Connecting](#141-setup--connecting)
-    - [14.2 Logging](#142-logging)
-    - [14.3 Event Validation \& Transformation](#143-event-validation--transformation)
-    - [14.4 Lifecycle Hooks](#144-lifecycle-hooks)
-    - [14.5 Rooms \& Offline Queue](#145-rooms--offline-queue)
-    - [14.6 React Bindings](#146-react-bindings)
-  - [15. Extensions](#15-extensions)
-    - [15.1 GraphQL Support](#151-graphql-support)
-    - [15.2 Schema Validation (Zod)](#152-schema-validation-zod)
-    - [15.3 Request Compression](#153-request-compression)
-  - [16. End-to-End Examples](#16-end-to-end-examples)
-    - [16.1 Full CRUD App](#161-full-crud-app)
-    - [16.2 File Upload](#162-file-upload)
-    - [16.3 Streaming File Download](#163-streaming-file-download)
-    - [16.4 A Realistic Production Setup](#164-a-realistic-production-setup)
-  - [17. Migration Guides](#17-migration-guides)
-    - [17.1 From Axios](#171-from-axios)
-    - [17.2 From Native Fetch](#172-from-native-fetch)
-  - [18. Best Practices](#18-best-practices)
-  - [19. Troubleshooting](#19-troubleshooting)
-    - [Request Hangs Forever](#request-hangs-forever)
-    - [CORS Errors](#cors-errors)
-    - [Cache Growing Unbounded (Memory Leak)](#cache-growing-unbounded-memory-leak)
-    - ["Circuit breaker is OPEN — request blocked"](#circuit-breaker-is-open--request-blocked)
-    - [Infinite 401 → Refresh → 401 Loop](#infinite-401--refresh--401-loop)
-    - [`deduplicate: true` Still Sends Multiple Requests](#deduplicate-true-still-sends-multiple-requests)
-    - [Stale Data After a Mutation](#stale-data-after-a-mutation)
-    - [Socket Reconnects Repeatedly in a Loop](#socket-reconnects-repeatedly-in-a-loop)
-  - [20. FAQ](#20-faq)
-  - [21. License, Contributing \& Support](#21-license-contributing--support)
-
----
-
 ## 1. Getting Started
 
 ### 1.1 Installation
@@ -173,7 +72,7 @@ rhttp.io ships several entry points instead of a single monolithic import. Pick 
 | `import { HttpError, TimeoutError, NetworkError } from "rhttp.io"`                         | You need the error classes for `instanceof` checks.                                                                          |
 | `import { RateLimiter, RequestProfiler } from "rhttp.io/features"`                         | You want to use rate limiting or profiling as standalone utilities, outside the main client.                                 |
 | `import { CircuitBreaker } from "rhttp.io/advanced"`                                       | You want to manage a circuit breaker manually instead of via the `circuitBreaker` config option.                             |
-| `import {  withSchemaValidation, createCompressionMiddleware } from "rhttp.io/extensions"` | You need GraphQL, Zod validation, or compression layered on top of a client.                                                 |
+| `import {  withSchemaValidation, createCompressionMiddleware } from "rhttp.io/extensions"` | You need Zod validation, or compression layered on top of a client.                                                          |
 
 ### 1.3 Quick Start
 
@@ -388,14 +287,6 @@ const http = createHttp({
     maxDelay: 30_000,
     statusCodes: [408, 429, 500, 502, 503, 504],
     shouldRetry: async (error, attempt) => attempt <= 3,
-  },
-
-  // ── Authentication ────────────────────────────────────────
-  auth: {
-    forwardCookies: false,
-    accessToken: "your-jwt-token",
-    scheme: "Bearer",
-    getToken: async () => "dynamic-token",
   },
 
   // ── CSRF protection (browser) ─────────────────────────────
