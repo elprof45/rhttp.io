@@ -1,25 +1,18 @@
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  mock,
-  test,
-} from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
-import {
-  createHttp,
-  createRefreshAuthInterceptor,
-  HttpError,
-  TimeoutError,
-  NetworkError,
-} from "./dist/index.js";
+import { createHttp, HttpError, NetworkError } from "../dist/index.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Mock Response Factory
 // ─────────────────────────────────────────────────────────────────────────────
 
-type MockResponseData = Record<string, unknown> | unknown[] | string | number | boolean | null;
+type MockResponseData =
+  | Record<string, unknown>
+  | unknown[]
+  | string
+  | number
+  | boolean
+  | null;
 
 interface MockResponse {
   ok: boolean;
@@ -35,7 +28,7 @@ function createMockResponse(
   ok = true,
   status = 200,
   data: MockResponseData = {},
-  headers?: Record<string, string>
+  headers?: Record<string, string>,
 ): MockResponse {
   const headersMap = new Map([["content-type", "application/json"]]);
   if (headers) {
@@ -108,7 +101,9 @@ describe("Basic HTTP Methods", () => {
     installJsonFetch(createMockResponse(true, 201, { id: 2, created: true }));
 
     const http = createHttp({ baseURL: "http://api.test" });
-    const response = await http.post<{ created: boolean }>("/items", { name: "New Item" });
+    const response = await http.post<{ created: boolean }>("/items", {
+      name: "New Item",
+    });
 
     expect(response.status).toBe(201);
     expect(response.data.created).toBe(true);
@@ -118,7 +113,9 @@ describe("Basic HTTP Methods", () => {
     installJsonFetch(createMockResponse(true, 200, { id: 1, updated: true }));
 
     const http = createHttp({ baseURL: "http://api.test" });
-    const response = await http.put<{ updated: boolean }>("/items/1", { name: "Updated" });
+    const response = await http.put<{ updated: boolean }>("/items/1", {
+      name: "Updated",
+    });
 
     expect(response.status).toBe(200);
     expect(response.data.updated).toBe(true);
@@ -128,7 +125,9 @@ describe("Basic HTTP Methods", () => {
     installJsonFetch(createMockResponse(true, 200, { id: 1, patched: true }));
 
     const http = createHttp({ baseURL: "http://api.test" });
-    const response = await http.patch<{ patched: boolean }>("/items/1", { name: "Patched" });
+    const response = await http.patch<{ patched: boolean }>("/items/1", {
+      name: "Patched",
+    });
 
     expect(response.status).toBe(200);
     expect(response.data.patched).toBe(true);
@@ -147,7 +146,9 @@ describe("Basic HTTP Methods", () => {
     installJsonFetch(createMockResponse(true, 200, { deleted: true }));
 
     const http = createHttp({ baseURL: "http://api.test" });
-    const response = await http.delete<{ deleted: boolean }>("/items/1", { reason: "cleanup" });
+    const response = await http.delete<{ deleted: boolean }>("/items/1", {
+      reason: "cleanup",
+    });
 
     expect(response.status).toBe(200);
     expect(response.data.deleted).toBe(true);
@@ -160,18 +161,14 @@ describe("Basic HTTP Methods", () => {
 
 describe("Error Handling", () => {
   test("HTTP error with 4xx status", async () => {
-    installJsonFetch(
-      createMockResponse(false, 404, { error: "Not found" })
-    );
+    installJsonFetch(createMockResponse(false, 404, { error: "Not found" }));
 
     const http = createHttp({ baseURL: "http://api.test" });
     await expect(http.get("/not-found")).rejects.toThrow(HttpError);
   });
 
   test("HTTP error with 5xx status", async () => {
-    installJsonFetch(
-      createMockResponse(false, 500, { error: "Server Error" })
-    );
+    installJsonFetch(createMockResponse(false, 500, { error: "Server Error" }));
 
     const http = createHttp({ baseURL: "http://api.test" });
     await expect(http.get("/error")).rejects.toThrow(HttpError);
@@ -205,9 +202,7 @@ describe("Error Handling", () => {
   });
 
   test("Error includes request details", async () => {
-    installJsonFetch(
-      createMockResponse(false, 400, { error: "Bad Request" })
-    );
+    installJsonFetch(createMockResponse(false, 400, { error: "Bad Request" }));
 
     const http = createHttp({ baseURL: "http://api.test" });
     try {
@@ -366,7 +361,9 @@ describe("Retry Logic", () => {
     installFetch(async () => {
       attempt += 1;
       if (attempt < 3) {
-        return createMockResponse(false, 503, { error: "Service Unavailable" }) as any;
+        return createMockResponse(false, 503, {
+          error: "Service Unavailable",
+        }) as any;
       }
       return createMockResponse(true, 200, { retried: true }) as any;
     });
@@ -450,7 +447,7 @@ describe("Retry Logic", () => {
   test("Retry respects max delay", async () => {
     let attempt = 0;
     const times: number[] = [];
-    
+
     installFetch(async () => {
       times.push(Date.now());
       attempt += 1;
@@ -473,13 +470,10 @@ describe("Retry Logic", () => {
 
     await http.get("/items");
 
-    const delays = [
-      times[1] - times[0],
-      times[2] - times[1],
-    ];
+    const delays = [times[1] - times[0], times[2] - times[1]];
 
     // Both delays should be close to 50ms
-    delays.forEach(delay => {
+    delays.forEach((delay) => {
       expect(delay).toBeGreaterThanOrEqual(40);
       expect(delay).toBeLessThan(150);
     });
@@ -563,7 +557,7 @@ describe("Interceptors", () => {
       async (error) => {
         errorInterceptorCalled = true;
         throw error;
-      }
+      },
     );
 
     try {
@@ -683,9 +677,9 @@ describe("Request Cancellation", () => {
     });
 
     const http = createHttp({ baseURL: "http://api.test" });
-    
+
     const response = await http.get("/items");
-    
+
     expect(signalPassed).toBe(true);
     expect(response.status).toBe(200);
   });
@@ -784,7 +778,9 @@ describe("Response Parsing", () => {
         ok: true,
         status: 204,
         headers: new Map([["content-length", "0"]]),
-        json: async () => { throw new Error("No content"); },
+        json: async () => {
+          throw new Error("No content");
+        },
         text: async () => "",
       } as any;
     });

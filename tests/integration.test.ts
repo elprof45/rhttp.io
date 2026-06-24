@@ -1,21 +1,13 @@
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  mock,
-  test,
-} from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
 import {
   createHttp,
   createClientHttp,
   createServerHttp,
-  withGraphQL,
   HttpError,
   TimeoutError,
   NetworkError,
-} from "./dist/index.js";
+} from "../dist/index.js";
 
 function createMockResponse(ok = true, status = 200, data: any = {}) {
   return {
@@ -93,7 +85,9 @@ describe("Advanced HTTP Configuration", () => {
     installFetch(async () => {
       attempt++;
       if (attempt <= 3) {
-        return createMockResponse(false, 503, { error: "Service Unavailable" }) as any;
+        return createMockResponse(false, 503, {
+          error: "Service Unavailable",
+        }) as any;
       }
       return createMockResponse(true, 200, { success: true }) as any;
     });
@@ -134,7 +128,7 @@ describe("Advanced HTTP Configuration", () => {
       concurrentCount++;
       maxConcurrent = Math.max(maxConcurrent, concurrentCount);
 
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise((resolve) => setTimeout(resolve, 50));
 
       concurrentCount--;
       return createMockResponse(true, 200, { id: 1 }) as any;
@@ -149,7 +143,9 @@ describe("Advanced HTTP Configuration", () => {
       },
     });
 
-    const promises = Array(5).fill(0).map(() => http.get("/test"));
+    const promises = Array(5)
+      .fill(0)
+      .map(() => http.get("/test"));
     await Promise.all(promises);
 
     expect(maxConcurrent).toBeLessThanOrEqual(2);
@@ -179,8 +175,8 @@ describe("Advanced HTTP Configuration", () => {
   });
 
   test("Observability metrics collection", async () => {
-    installFetch(async () =>
-      createMockResponse(true, 200, { success: true }) as any
+    installFetch(
+      async () => createMockResponse(true, 200, { success: true }) as any,
     );
 
     const http = createHttp({
@@ -313,8 +309,8 @@ describe("Authentication & Security", () => {
 
 describe("Error Handling & Recovery", () => {
   test("Error includes full context", async () => {
-    installFetch(async () =>
-      createMockResponse(false, 404, { error: "Not Found" }) as any
+    installFetch(
+      async () => createMockResponse(false, 404, { error: "Not Found" }) as any,
     );
 
     const http = createHttp({ baseURL: "http://api.test" });
@@ -372,8 +368,9 @@ describe("Error Handling & Recovery", () => {
   });
 
   test("Custom error handler in interceptor", async () => {
-    installFetch(async () =>
-      createMockResponse(false, 500, { error: "Server Error" }) as any
+    installFetch(
+      async () =>
+        createMockResponse(false, 500, { error: "Server Error" }) as any,
     );
 
     const http = createHttp({ baseURL: "http://api.test" });
@@ -386,7 +383,7 @@ describe("Error Handling & Recovery", () => {
           errorHandled = true;
         }
         throw error;
-      }
+      },
     );
 
     try {
@@ -419,8 +416,8 @@ describe("Request & Response Validation", () => {
   });
 
   test("Custom response validator validates shape", async () => {
-    installFetch(async () =>
-      createMockResponse(true, 200, { id: "string-id" }) as any
+    installFetch(
+      async () => createMockResponse(true, 200, { id: "string-id" }) as any,
     );
 
     const http = createHttp({ baseURL: "http://api.test" });
@@ -436,8 +433,8 @@ describe("Request & Response Validation", () => {
   });
 
   test("Response transformer modifies data", async () => {
-    installFetch(async () =>
-      createMockResponse(true, 200, { value: 10 }) as any
+    installFetch(
+      async () => createMockResponse(true, 200, { value: 10 }) as any,
     );
 
     const http = createHttp({
@@ -495,8 +492,8 @@ describe("Complex Integration Scenarios", () => {
   test("Multiple interceptors in pipeline", async () => {
     let interceptorOrder: string[] = [];
 
-    installFetch(async () =>
-      createMockResponse(true, 200, { value: "original" }) as any
+    installFetch(
+      async () => createMockResponse(true, 200, { value: "original" }) as any,
     );
 
     const http = createHttp({ baseURL: "http://api.test" });

@@ -1,14 +1,14 @@
-import {
-  afterEach,
-  beforeEach,
-  expect,
-  mock,
-  test,
-} from "bun:test";
+import { afterEach, beforeEach, expect, mock, test } from "bun:test";
 
-import { createHttp, createRefreshAuthInterceptor } from "./dist/index.js";
+import { createHttp, createRefreshAuthInterceptor } from "../dist/index.js";
 
-type MockResponseData = Record<string, unknown> | unknown[] | string | number | boolean | null;
+type MockResponseData =
+  | Record<string, unknown>
+  | unknown[]
+  | string
+  | number
+  | boolean
+  | null;
 
 interface MockResponse {
   ok: boolean;
@@ -53,9 +53,7 @@ function installFetch(
   globalThis.fetch = handler as typeof fetch;
 }
 
-function installJsonFetch(
-  response: MockResponse,
-) {
+function installJsonFetch(response: MockResponse) {
   installFetch(async () => response as any);
 }
 
@@ -89,7 +87,9 @@ test("POST request with body", async () => {
   installJsonFetch(createMockResponse(true, 201, { id: 2, created: true }));
 
   const http = createHttp({ baseURL: "http://api.test" });
-  const response = await http.post<{ created: boolean }>("/items", { name: "New Item" });
+  const response = await http.post<{ created: boolean }>("/items", {
+    name: "New Item",
+  });
 
   expect(response.status).toBe(201);
   expect(response.data.created).toBe(true);
@@ -162,7 +162,9 @@ test("Retry with exponential backoff", async () => {
   installFetch(async () => {
     attempt += 1;
     if (attempt < 3) {
-      return createMockResponse(false, 503, { error: "Service Unavailable" }) as any;
+      return createMockResponse(false, 503, {
+        error: "Service Unavailable",
+      }) as any;
     }
     return createMockResponse(true, 200, { retried: true }) as any;
   });
@@ -188,9 +190,7 @@ test("Interceptors modify requests and responses", async () => {
   let capturedHeaders: Record<string, string> | undefined;
 
   installFetch(async (_url, init) => {
-    capturedHeaders = Object.fromEntries(
-      new Headers(init?.headers).entries(),
-    );
+    capturedHeaders = Object.fromEntries(new Headers(init?.headers).entries());
     return createMockResponse(true, 200, { value: "original" }) as any;
   });
 
@@ -399,17 +399,23 @@ test("HTTP Cache stale-while-revalidate strategy", async () => {
     cache: { enabled: true, ttl: 50 },
   });
 
-  const res1 = await http.get("/counter", { cacheStrategy: "stale-while-revalidate" });
+  const res1 = await http.get("/counter", {
+    cacheStrategy: "stale-while-revalidate",
+  });
   expect(res1.data.count).toBe(1);
 
   await sleep(60);
 
-  const res2 = await http.get("/counter", { cacheStrategy: "stale-while-revalidate" });
+  const res2 = await http.get("/counter", {
+    cacheStrategy: "stale-while-revalidate",
+  });
   expect(res2.data.count).toBe(1);
 
   await sleep(50);
 
-  const res3 = await http.get("/counter", { cacheStrategy: "stale-while-revalidate" });
+  const res3 = await http.get("/counter", {
+    cacheStrategy: "stale-while-revalidate",
+  });
   expect(res3.data.count).toBe(2);
 });
 
@@ -418,7 +424,8 @@ test("JWT Refresh Token Interceptor refreshes token and retries requests", async
 
   installFetch(async (_url, init) => {
     const headers = init?.headers ? new Headers(init.headers) : new Headers();
-    const authHeader = headers.get("authorization") ?? headers.get("Authorization") ?? "";
+    const authHeader =
+      headers.get("authorization") ?? headers.get("Authorization") ?? "";
 
     if (authHeader === "Bearer new-token") {
       return createMockResponse(true, 200, { data: "success" }) as any;
@@ -479,7 +486,9 @@ class MockSocket {
     if (!fn) {
       delete this.listeners[event];
     } else if (this.listeners[event]) {
-      this.listeners[event] = this.listeners[event].filter((listener) => listener !== fn);
+      this.listeners[event] = this.listeners[event].filter(
+        (listener) => listener !== fn,
+      );
     }
     return this;
   }
@@ -517,7 +526,7 @@ mock.module("socket.io-client", () => {
 (globalThis as any).window = {};
 (globalThis as any).document = { cookie: "" };
 
-const { createRealtimeClient } = await import("./dist/socket.io.js");
+const { createRealtimeClient } = await import("../dist/socket.io.js");
 
 test("Realtime Client Logger and lifecycle hooks", async () => {
   let connectHookCalled = false;
@@ -548,7 +557,9 @@ test("Realtime Client Logger and lifecycle hooks", async () => {
 
   expect(connectHookCalled).toBe(true);
   expect(logs.some((msg) => msg.includes("Connecting to socket"))).toBe(true);
-  expect(logs.some((msg) => msg.includes("Socket connected successfully"))).toBe(true);
+  expect(
+    logs.some((msg) => msg.includes("Socket connected successfully")),
+  ).toBe(true);
 
   client.disconnect();
 
