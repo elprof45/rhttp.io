@@ -71,5 +71,6 @@ export {
   AdaptiveRetryStrategy,
   createTimeoutMiddleware,
   createETagCacheMiddleware,
+  createErrorHandlingMiddleware,
   type SchemaValidator,
 } from "./extensions";

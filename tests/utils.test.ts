@@ -99,7 +99,7 @@ describe("buildUrl", () => {
   });
 
   test("concatenates with & when URL already has query string", () => {
-    const result = buildUrl("http://api.test/search?existing=true", undefined, {
+    const result = buildUrl("", "http://api.test/search?existing=true", {
       new: "value",
     });
     expect(result).toContain("existing=true");
