@@ -739,9 +739,30 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
       }
     }
 
+    // Strip custom library options before passing to native fetch
+    const {
+      params: _params,
+      cache: _cache,
+      retry: _retry,
+      timeout: _timeout,
+      deduplicate: _deduplicate,
+      csrf: _csrf,
+      requestId: _requestId,
+      hooks: _hooks,
+      cacheStrategy: _cacheStrategy,
+      transformer: _transformer,
+      polling: _polling,
+      validateResponse: _validateResponse,
+      headers: _headers,
+      method: _method,
+      body: _body,
+      signal: _signal,
+      ...nativeOptions
+    } = options;
+
     const nativeFetchOptions: RequestInit = {
       ...config.defaultFetchOptions,
-      ...options,
+      ...nativeOptions,
       method,
       headers: finalHeaders,
       body: finalBody,
