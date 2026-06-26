@@ -11,6 +11,12 @@ export {
 export { createClientHttp } from "./client";
 export { createServerHttp } from "./server";
 export {
+  withReact,
+  type ReactHttpClientInstance,
+  type ReactQueryConfig,
+  type ReactMutationConfig,
+} from "./react";
+export {
   CircuitBreaker,
   RequestPool,
   PollingManager,

@@ -62,17 +62,17 @@ yarn add rhttp.io
 
 rhttp.io ships several entry points instead of a single monolithic import. Pick the one that matches where your code runs — this keeps bundle size down and gives you environment-specific defaults for free.
 
-| Import                                                                                     | Use it when...                                                                                                               |
-| ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| `import { createHttp } from "rhttp.io"`                                                    | You want the universal client. Safe default for shared/isomorphic code (e.g. code that runs on both server and client).      |
-| `import { createClientHttp } from "rhttp.io/client"`                                       | You're writing browser-only code and want CSRF token prefetching and browser-specific defaults.                              |
-| `import { createServerHttp } from "rhttp.io/server"`                                       | You're writing server-only code (API routes, server functions) and want cookie forwarding and structured logging by default. |
-| `import { withReact } from "rhttp.io/react"`                                               | You want TanStack Query builders (`.query()`, `.mutation()`) layered on top of any client.                                   |
-| `import { createRealtimeClient } from "rhttp.io/socket.io.client"`                         | You need a Socket.io connection, not request/response HTTP.                                                                  |
-| `import { HttpError, TimeoutError, NetworkError } from "rhttp.io"`                         | You need the error classes for `instanceof` checks.                                                                          |
-| `import { RateLimiter, RequestProfiler } from "rhttp.io/features"`                         | You want to use rate limiting or profiling as standalone utilities, outside the main client.                                 |
-| `import { CircuitBreaker } from "rhttp.io/advanced"`                                       | You want to manage a circuit breaker manually instead of via the `circuitBreaker` config option.                             |
-| `import {  withSchemaValidation, createCompressionMiddleware } from "rhttp.io/extensions"` | You need Zod validation, or compression layered on top of a client.                                                          |
+| Import                                                                                     | Use it when...                                                                                                                 |
+| ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| `import { createHttp } from "rhttp.io"`                                                    | You want the universal client. Safe default for shared/isomorphic code (e.g. code that runs on both server and client).        |
+| `import { createClientHttp } from "rhttp.io/client"`                                       | You're writing browser-only code and want CSRF token prefetching, browser defaults, and built-in React/TanStack Query helpers. |
+| `import { createServerHttp } from "rhttp.io/server"`                                       | You're writing server-only code (API routes, server functions) and want cookie forwarding and structured logging by default.   |
+| `import { createReactHttp, withReact } from "rhttp.io/react"`                              | You want a React-first client, or to layer TanStack Query builders (`.query()`, `.mutation()`) on top of any existing client.  |
+| `import { createRealtimeClient } from "rhttp.io/socket.io.client"`                         | You need a Socket.io connection, not request/response HTTP.                                                                    |
+| `import { HttpError, TimeoutError, NetworkError } from "rhttp.io"`                         | You need the error classes for `instanceof` checks.                                                                            |
+| `import { RateLimiter, RequestProfiler } from "rhttp.io/features"`                         | You want to use rate limiting or profiling as standalone utilities, outside the main client.                                   |
+| `import { CircuitBreaker } from "rhttp.io/advanced"`                                       | You want to manage a circuit breaker manually instead of via the `circuitBreaker` config option.                               |
+| `import {  withSchemaValidation, createCompressionMiddleware } from "rhttp.io/extensions"` | You need Zod validation, or compression layered on top of a client.                                                            |
 
 ### 1.3 Quick Start
 
@@ -110,6 +110,29 @@ const { data: newPost } = await http.post<CreatePostInput, CreatePostResponse>(
 ```
 
 Notice the two generic parameters on `post`: the first is the shape of the body you're sending, the second is the shape of the data you expect back. TypeScript will then check both ends for you.
+
+#### React-ready combo client
+
+```typescript
+import { createClientHttp } from "rhttp.io/client";
+
+const http = createClientHttp({
+  baseURL: "https://api.example.com",
+});
+
+const usersQuery = http.query({
+  url: "/users",
+  staleTime: 30_000,
+});
+
+const createUser = http.mutation({
+  method: "POST",
+  url: "/users",
+  invalidateQueries: ["users"],
+});
+```
+
+If you prefer a dedicated React factory, `createReactHttp()` is also available from `rhttp.io/react` and offers the same helpers with a React-oriented entry point.
 
 #### Basic error handling
 

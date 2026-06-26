@@ -31,16 +31,22 @@ import {
   PluginManager,
 } from "./advanced";
 
+type RequestContext = HttpRequestOptions & {
+  url: string;
+  method: string;
+  body?: unknown;
+};
+
 // Interceptor manager implementation
 class InterceptorManagerImpl<T> implements InterceptorManager<T> {
   private handlers: Array<{
     onFulfilled: (value: T) => Promise<T> | T;
-    onRejected?: (error: any) => Promise<any> | any;
+    onRejected?: (error: unknown) => Promise<unknown> | unknown;
   } | null> = [];
 
   use(
     onFulfilled: (value: T) => Promise<T> | T,
-    onRejected?: (error: any) => Promise<any> | any,
+    onRejected?: (error: unknown) => Promise<unknown> | unknown,
   ): InterceptorHandler<T> {
     this.handlers.push({ onFulfilled, onRejected });
     const id = this.handlers.length - 1;
@@ -63,7 +69,7 @@ class InterceptorManagerImpl<T> implements InterceptorManager<T> {
   forEach(
     fn: (handler: {
       onFulfilled: (value: T) => Promise<T> | T;
-      onRejected?: (error: any) => Promise<any> | any;
+      onRejected?: (error: unknown) => Promise<unknown> | unknown;
     }) => void,
   ): void {
     this.handlers.forEach((handler) => {
@@ -298,8 +304,10 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
   }
 
   // Interceptors managers
-  const requestInterceptors = new InterceptorManagerImpl<any>();
-  const responseInterceptors = new InterceptorManagerImpl<HttpResponse<any>>();
+  const requestInterceptors = new InterceptorManagerImpl<RequestContext>();
+  const responseInterceptors = new InterceptorManagerImpl<
+    HttpResponse<unknown>
+  >();
 
   /**
    * Merge HTTP headers with clear priority order (case-insensitive).
@@ -374,7 +382,7 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
 
   // Main HTTP requester function wrapped with cache, deduplication, and retries
   async function performRequestWithAllFeatures(
-    options: any,
+    options: RequestContext,
   ): Promise<HttpResponse<any>> {
     const method = options.method.toUpperCase();
     const isGet = method === "GET";
@@ -388,19 +396,32 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
 
     // Caching configuration resolution
     const cacheOverride = finalOptions.cache;
+    const resolveCacheValue = <K extends keyof CacheConfig>(
+      key: K,
+      fallback: CacheConfig[K],
+    ): CacheConfig[K] => {
+      if (typeof cacheOverride === "object" && cacheOverride !== null) {
+        const override = cacheOverride as Partial<CacheConfig>;
+        if (override[key] !== undefined) {
+          return override[key] as CacheConfig[K];
+        }
+      }
+      return fallback;
+    };
+
     const isCacheEnabled =
       cacheOverride !== false &&
-      (typeof cacheOverride === "object"
-        ? (cacheOverride.enabled ?? true)
+      (typeof cacheOverride === "object" && cacheOverride !== null
+        ? resolveCacheValue("enabled", true)
         : cacheConfig.enabled);
 
-    const resolvedTtl =
-      typeof cacheOverride === "object" && cacheOverride.ttl !== undefined
-        ? cacheOverride.ttl
-        : cacheConfig.ttl;
+    const resolvedTtl = resolveCacheValue("ttl", cacheConfig.ttl);
 
     const resolvedKeyBuilder =
-      typeof cacheOverride === "object" && cacheOverride.keyBuilder
+      typeof cacheOverride === "object" &&
+      cacheOverride !== null &&
+      "keyBuilder" in cacheOverride &&
+      cacheOverride.keyBuilder
         ? cacheOverride.keyBuilder
         : cacheConfig.keyBuilder ||
           ((u, opts) => `GET:${u}:${JSON.stringify(opts.params ?? {})}`);
@@ -667,8 +688,8 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
 
   // Execution of a single native fetch call
   async function executeSingleRequest(
-    options: any,
-  ): Promise<HttpResponse<any>> {
+    options: RequestContext,
+  ): Promise<HttpResponse<unknown>> {
     const method = options.method.toUpperCase();
     const startTime = Date.now();
 
@@ -972,46 +993,33 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
   }
 
   // Core Request function with Interceptor pipeline chained
-  async function request<T = any>(
+  async function request<T = unknown>(
     url: string,
-    options: any,
+    options: HttpRequestOptions = {},
   ): Promise<HttpResponse<T>> {
-    let interceptorOptions = {
-      url,
+    let interceptorOptions: Promise<RequestContext> = Promise.resolve({
       ...options,
-    };
-
-    // Run Request Interceptors
-    let reqErr: any = null;
-    requestInterceptors.forEach((handler) => {
-      if (reqErr) return;
-      try {
-        const result = handler.onFulfilled(interceptorOptions);
-        if (result && typeof (result as any).then === "function") {
-          // Promise returned
-          interceptorOptions = result as any;
-        } else {
-          interceptorOptions = result;
-        }
-      } catch (err) {
-        if (handler.onRejected) {
-          try {
-            interceptorOptions = handler.onRejected(err);
-          } catch (rejectedErr) {
-            reqErr = rejectedErr;
-          }
-        } else {
-          reqErr = err;
-        }
-      }
+      url,
+      method: options.method ?? "GET",
     });
 
-    if (reqErr) {
-      return Promise.reject(reqErr);
-    }
+    // Run Request Interceptors
+    requestInterceptors.forEach((handler) => {
+      interceptorOptions = interceptorOptions.then(async (currentOptions) => {
+        try {
+          const result = await handler.onFulfilled(currentOptions);
+          return result as RequestContext;
+        } catch (err) {
+          if (handler.onRejected) {
+            return (await handler.onRejected(err)) as RequestContext;
+          }
+          throw err;
+        }
+      });
+    });
 
     // Resolve request interceptor options if it's a promise
-    const resolvedOptions = await Promise.resolve(interceptorOptions);
+    const resolvedOptions = await interceptorOptions;
 
     // Run request validation if provided
     if (config.requestValidator) {
@@ -1032,7 +1040,7 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
     abortControllers.set(requestId, new AbortController());
 
     // Wrap with Circuit Breaker and Request Pool
-    let responsePromise: Promise<HttpResponse<any>>;
+    let responsePromise: Promise<HttpResponse<T>>;
 
     try {
       const requestStartTime = Date.now();
@@ -1054,8 +1062,9 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
           }
 
           try {
-            const response =
-              await performRequestWithAllFeatures(resolvedOptions);
+            const response = (await performRequestWithAllFeatures(
+              resolvedOptions as RequestContext,
+            )) as HttpResponse<T>;
             const durationMs = Date.now() - requestStartTime;
 
             // Call global onSuccess hook with full context
@@ -1120,12 +1129,21 @@ export function createHttp(config: CreateHttpConfig = {}): HttpClientInstance {
     // Run Response Interceptors
     responseInterceptors.forEach((handler) => {
       responsePromise = responsePromise.then(
-        (res) => (handler.onFulfilled ? handler.onFulfilled(res) : res),
-        (err) => {
-          if (handler.onRejected) {
-            return handler.onRejected(err);
+        (res): Promise<HttpResponse<T>> | HttpResponse<T> => {
+          if (handler.onFulfilled) {
+            return handler.onFulfilled(res as HttpResponse<unknown>) as
+              | HttpResponse<T>
+              | Promise<HttpResponse<T>>;
           }
-          return Promise.reject(err);
+          return res;
+        },
+        (err): Promise<HttpResponse<T>> | HttpResponse<T> => {
+          if (handler.onRejected) {
+            return handler.onRejected(err) as
+              | HttpResponse<T>
+              | Promise<HttpResponse<T>>;
+          }
+          return Promise.reject(err) as Promise<HttpResponse<T>>;
         },
       );
     });

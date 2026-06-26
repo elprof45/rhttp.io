@@ -66,6 +66,30 @@ describe("HTTP Client Factories", () => {
     expect(http.config.csrf?.prefetch).toBe(true);
   });
 
+  test("createClientHttp exposes TanStack-compatible query helpers", async () => {
+    installFetch(async () => {
+      return createMockResponse(true, 200, { items: [{ id: 1 }] }) as any;
+    });
+
+    const http = createClientHttp({
+      baseURL: "https://api.test",
+      reactAdapter: true,
+    });
+
+    const query = http.query?.({
+      url: "/users",
+      params: { page: 1 },
+      enabled: false,
+      select: (data: { items: Array<{ id: number }> }) => data.items,
+    });
+
+    expect(query?.queryKey).toEqual(["/users", { page: 1 }]);
+    expect(typeof query?.queryFn).toBe("function");
+
+    const result = await query?.queryFn();
+    expect(result).toEqual([{ id: 1 }]);
+  });
+
   test("createServerHttp enables cookie forwarding", () => {
     const http = createServerHttp({
       baseURL: "https://api.test",
